@@ -10,6 +10,36 @@
 \usepackage[overload]{empheq}
 \usepackage[inline, shortlabels]{enumitem}
 \usepackage{bm}
+\usepackage{color}
+\usepackage{natbib}
+\usepackage{float}
+\usepackage{textcomp}
+
+\usepackage{listings}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{snippet}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=t,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
 
 \usepackage{emptypage} % remove header in blanck pages
 
@@ -255,7 +285,7 @@ The full training algorithm is :
  \setlength\itemsep{-0.3em}
  \item [-] define the model with random parameters
  \item [-] compute the output for one of the inputs
- \item [-] compute the loss function and the gradients
+ \item [-] compute the loss function $C(W)$ and the gradients $\frac{\partial C}{\partial w_l^{j k}}$ and $\frac{\partial C}{\partial b_l^j}$ for each $l$.
  \item [-] updates the parameters following the update rule, 
  \item [-] iterate from step 2 until the loss is sufficiently small
 \end{itemize}
@@ -264,10 +294,11 @@ The full training algorithm is :
 
 The term Super-Resolution (SR) referes to a class of techniques which aim is to enhance the spatial resolution of an image, thus converting a given low resolution (LR) image to a corresponding high resolution (HR) one, with better visual quality and refined details.
 Image super-resolution is also called by other names like image scaling, interpolation, upsampling and zooming \cite{survey-sr}.
-
-There are many kind of super resolution {\bf FINISH}
+ {\bf FINISH}
 
 \subsection*{Image Quality}
+
+\cite{psnr_ssim}
 
 \subsection*{PSNR}
 \subsection*{SSIM}
@@ -287,7 +318,7 @@ Byron (Build YouR Own Neural network) is a novel Deep Learning framework written
 
 \section{Convolutional Neural Network}
 
-A Convolutional Neural Network (CNN) is a specialized kind of neural network for processing data that has known grid-like topology \cite{Goodfellow-et-al-2016}. 
+A Convolutional Neural Network (CNN) is a specialized kind of neural network for processing data that has known grid-like topology \cite{Goodfellow-et-al-2016}, like images, that can be considered as a grid of pixel.
 The name indicates that at least one of the functions employed by the network is a convolution. In a continuos domain the convolution between two functions $f$ and $g$ is defined as: 
 \begin{equation}
  (f * g)(t) = \int_{-\infty}^{+\infty} f(\tau)g(t-\tau)d\tau
@@ -296,6 +327,7 @@ The first function $f$ is usually referred to as the input and the second functi
 For Image Processing applications we can define a 2-dimensional discrete version of the convolution in a finite domain using an image $I$ as input and a 2 dimensional kernel $k$:
 \begin{equation}
  C[i, j] = \sum_{u=-N}^N \sum_{v=-M}^M k[u, v] \cdot I[i-u, j-v]
+ \label{eq:conv}
 \end{equation}
 where $C[i, j]$ is the pixel value of the output image and $N$, $M$ are the kernel dimensions.
 Practically speaking, a convolution is performed by sliding a kernel of dimension $N \times M$ over the image, each kernel position corresponds to a single output pixel, the value of which is calculated by multiplying together the kernel value and the underlaying pixel value for each cell of the kernel and summing all the results, as shown in figure \ref{fig:convolution}:
@@ -311,21 +343,269 @@ The convolution operation is also called $filtering$. By chosing the right kerne
 
 \section{Layers}
 
-As described above, a neural network can be considered as a composition of function: for this reasons every Deep Learning library (e.g. Keras/Tensorflow, Pytorch, Darknet) implement each function as an independent object called {\it Layer}. 
+As described above, a neural network can be considered as a composition of function: for this reasons every Deep Learning framework (e.g. Keras/Tensorflow, Pytorch, Darknet) implement each function as an independent object called {\it Layer}. In Byron and NumPyNet, each layer contains at least 3 methods:
+\begin{itemize}
+ \setlength\itemsep{-0.3em}
+ \item {\bf forward} the forward method compute the output of the layer, given as input the previous output. 
+ \item {\bf backward} the backward method is essential for the training phase of the model: indeed, it computes all the updates for the layer weights and backpropagates the error to the previous layers in the chain.
+ \item {\bf update} the update method applies the given update rules to the layer's weights.
+\end{itemize}
 By stacking different kinds of layer one after another, it is possible to build 
-
-{\bf FINISH}
-
+complex models with tens of millions of parameters. 
 For the purposes of this work, I'm going to describe layers used in super resolution, however, Byron is developed also for different applications (object detection, classification, segmentation, style transfer, Recurrent NN etc...) and as such, many more layers are available.   
 
 \subsection*{Convolutional Layer}
 
-The convolutional layer object is the most used layer in DL Image Analysis, therefore its implementation must be  {\bf FINISH}
+The convolutional layer (CL) object is the most used layer in DL image analysis, therefore its implementation must be as efficient as possible.
+Its purpose is to perform multiple (sometimes thousands) convolution over the input to extract different high-level features, which are compositions of many low-level attributes of the image (e.g edges, simple shapes).
+In the brain/neuron analogy, every entry in the output volume can also be interpreted as an output of a neuron that looks at only a small region, the neuron's {\it receptive field} in the input and shares parameters with all the neuron spatially close.
+As more CLs are stacked, the receptive field of a single neuron grows and with that, the complexity of the features it is able to extract.
+The local nature of the receptive field allows the models to recognize features regardless of the position in the images. In other words, it is independent from translations \cite{Goodfellow-et-al-2016}. 
 
+The difference from a traditional convolutional approach is that instead of using pre-determined filters, the network is supposed to learn its own.
+A CL si defined by the following parameters: 
+
+\begin{itemize}
+ \setlength\itemsep{-0.2em}
+ \item [-] {\bf kernel size} : it is the size of the sliding filters. The depth of the filters is decided by the depth of the input images (which is the number of channels.). The remanining 2 dimensions (widht and height) can be indipendent from one another, but most implementation require square kernels.
+ \item [-] {\bf strides} : defines the movement of the filters. With a low stride (e.g. unitary) the windows tends to overlap. With highr stride values we have less overlap (or none) and the dimension of the output decrease.
+ \item [-] {\bf number of filters} : is the number of different filters to apply to the input. It also indicates the depth of the output.
+ \item [-] {\bf padding} : is the dimensions of an artificial enlargement of the input to allow the application of filters on borders. Usually, it can be interpreted as the number of rows/columns of pixel to add to the input, however some libraries (e.g Keras) consider it only as binary: in case is true, only the minimum number of rows/columns are appended to keep the same spatial dimension.
+\end{itemize}
+Given the parameters, it is straightforward to compute the number of weights and bias needed for the initialization of the CL: indeed, suppose an image of dimensions $(H, W, C)$ slided by $n$ different 3-D filters of size $(k_x, k_y)$ with strides $(s_x, s_y)$ and padding $p$, then:
+\begin{align}
+ \# weights &= n \times k_x \times k_y \times C \\
+ \# bias &= n
+\end{align}
+Note that the number of weights does not depend on the input spatial size but only on its depth. It is important because a fully convolutional network can receives images of any size as long as they have the correct depth. Moreover, using larger inputs do not requires more weights, as is the case for fully connected structure. 
+
+The output dimensions are $(out\_H, out\_W, n)$ where :
+\begin{align}
+ out\_H &= \lfloor\frac{H - k_x + p}{s_x}\rfloor + 1 \\
+ out\_W &= \lfloor\frac{W - k_y + p}{s_y}\rfloor + 1
+\end{align}
+
+Even if the operation can be implemented as described above in equation \ref{eq:conv}, this is never the case: it is certainly easier but also order of magnitude slower than more common algorithms.
+A huge speed up in performances is given by realising that a discrete convolution can be viewed as a single matrix multiplication. By performing a clever transformation of the input into a flat matrix, in which every columns yields the values that have to be multiplied by the filters for each output, as shown in figure \ref{fig:im2col}
+
+\begin{figure}[h]
+ \centering
+ \includegraphics[scale=0.35]{./images/im2col.png}
+ \label{fig:im2col}
+ \caption{\it Scheme of the im2col algorithm using a $2 \times 2 \times 3$ filter with stride 1 on a $4 \times 4 \times 3$ image. The matrix multiplication is between a $n \times 12$ and a $12 \times 9$ matrixes.}
+\end{figure}
+
+This re-arrengement is commonly called im2col. The main downside is that a lot more memory is needed to store the newly arranged matrix.
+The larger the number of kernels, the higher is the time gain of this implementation over a naive one.  
+
+Another important optimization comes from linear algebra considerations and is called {\it Coppersmith-Winograd algorithm}, which was designed to optimize the matrix product.
+Suppose we have an input image of just 4 elements and a 1-D filter mask with size 3:
+
+\begin{equation}
+\mbox{img} = \left[\begin{array}{cccc} d0 & d1 & d2 & d3 \end{array}\right] \quad\quad \mbox{weights} = \left[\begin{array}{ccc} g0 & g1 & g2 \end{array}\right]
+\end{equation}
+\\
+we can now use the \textsf{im2col} algorithm previously described and reshape our input image and weights into
+
+\begin{equation}
+\mbox{img} = \left[
+\begin{array}{ccc}
+d0 & d1 & d2 \\
+d1 & d2 & d3
+\end{array}
+\right],
+\quad\quad
+\mbox{weights} = \left[
+\begin{array}{c}
+g0 \\
+g1 \\
+g2
+\end{array}
+\right]
+\end{equation}
+\\
+given this data, we can simply compute the output as the matrix product of this two matrices:
+
+\begin{equation}
+\mbox{output} = \left[
+\begin{array}{ccc}
+d0 & d1 & d2 \\
+d1 & d2 & d3
+\end{array}
+\right]
+\left[
+\begin{array}{c}
+g0 \\
+g1 \\
+g2
+\end{array}
+\right] = \left[
+\begin{array}{c}
+d0 \cdot g0 + d1 \cdot g1 + d2 \cdot g2 \\
+d1 \cdot g0 + d2 \cdot g1 + d3 \cdot g2 
+\end{array}
+\right]
+\end{equation}
+\\
+The Winograd algorithm rewrites this computation as follow:
+
+\begin{equation}
+\mbox{output} = \left[
+\begin{array}{ccc}
+d0 & d1 & d2 \\
+d1 & d2 & d3
+\end{array}
+\right]
+\left[
+\begin{array}{c}
+g0 \\
+g1 \\
+g2
+\end{array}
+\right] = \left[
+\begin{array}{c}
+m1 + m2 + m3 \\
+m2 - m3 - m4
+\end{array}
+\right]
+\end{equation}
+\\
+where
+
+\begin{equation}
+\begin{aligned}
+m1 = (d0 - d2)g0\quad\quad m2 = (d1 + d2)\frac{g0 + g1 + g2}{2}
+\\
+m4 = (d1 - d3)g2\quad\quad m3 = (d2 - d1)\frac{g0 - g1 + g2}{2}
+\end{aligned}
+\end{equation}
+
+The two fractions in $m2$ and $m3$ involve only weight's values, so they can be computed once per filter. Moreover, the normal matrix multiplication is composed of 6 multiplications and 4 addition, while the winograd algorithm reduce the number of multiplication to 4, that is very significant, considering that a  single multiplication takes 7 clock-cycles and an addition only 3. 
+In Byron we provide the winograd algorithm for square kernels of size 3 and stride 1, since it is one of the most common combinations in Deep Learning and the generalization is not straightforward.
+
+\begin{itemize}
+ \item col2im backward
+\end{itemize}
+ 
 \subsection*{Pooling}
+
+Pooling operations are down-sampling operations, so that the spatial dimensions of the input are reduced. Similarly to what happens in a CL, in pooling layers a 3-D kernel of size $k_x \times k_y \times C$ slides across an image of size $H \times W \times C$, however the operation performed by this kind of layers is fixed and does not change during the course of training.
+The two main pooling functions are max-pooling and average-pooling: as suggested by the names, the former  
+returns the maximum value of every window of the images super-posed by the kernel, as shown in figure \ref{fig:maxpool}:
+
+\begin{figure}[h]
+ \centering
+ \includegraphics[scale=0.35]{./images/maxpool.png}
+ \label{fig:maxpool}
+ \caption{\it Scheme of maxpool operations with a kernel of size $2 \times 2$ and stride $2$ over an image of size $4 \times 4$. Picture from CS231n}
+\end{figure}
+
+The latter instead, returns the average value of the window and can be seen as a convolution where every weight in the kernel is $\frac{1}{k_x \cdot k_y}$.
+The results expected from an Average pooling operations are shown in figure \ref{fig:avgpool:ex}:
+
+\begin{figure}[h]
+ \centering
+ \includegraphics[scale=0.7]{./images/avgpool_layer.png}
+ \label{fig:avgpool:ex}
+ \caption{\it Average pooling applied to a test image: (left) the original image, (center) average pooling with a $3 \times 3$ kernel, (right) average pooling with a $30 \times 30$ kernel. The images have been obtained using NumPyNet}
+\end{figure}
+
+Other popular pooling functions include the $L^2$ norm of a rectangular neighborhood or a weighted average based on the distance from the central pixel.
+
+A typical block of a convolutional network consists of three stages: In the first stage a CL performs several convolutions in parallel, in the second stage each convolution result is run through a non-linear activation function (sometimes called {\it detector}) and in the third stage a pooling function is used to further modify the output. 
+The modification brought by pooling is helpful in different ways: first of all, it is a straightforward computational performance improvement, since less features also means less operations. 
+Moreover, in all cases, pooling helps to make representation approximately invariant to small translation of the input and invariance to local translation can be a useful property if the objective is to decide wether a feature is present rather than where it is located \cite{Goodfellow-et-al-2016}.
+The reductions of features can also prevent over-fitting problems during training, improving the general performances of the model. 
+
+A pooling layer is defined by the same parameters as a CL, minus the number of filters:
+
+\begin{itemize}
+ \setlength\itemsep{-0.2em}
+ \item [-] {\bf kernel size} : it is the size of the sliding filters. The depth of the filters is decided by the depth of the input images (which is the number of channels.). The remanining 2 dimensions (widht and height) can be indipendent from one another, but most implementations require square kernels.
+ \item [-] {\bf strides} : defines the movement of the filters. With a low stride (e.g. unitary) the windows tends to overlap. With higher stride values we have less overlap (or none) and the dimension of the output decrease. Usually pooling operations have a stride of 2.
+ \item [-] {\bf padding} : is the dimensions of an artificial enlargement of the input to allow the application of filters on borders. Usually, it can be interpreted as the number of rows/columns of pixel to add to the input, however some libraries (e.g Keras) consider it only as binary: in case is true, only the minimum number of rows/columns are appended to keep the same spatial dimension. Most often than not, no padding is applied during pooling operations.
+\end{itemize}
+
+The output dimensions for Pooling layers are the same as for CLs, however, since the operations does not change during the training phase, they have no weights.
+
+Due to the similarities with the CL it is possible to implement a pooling layers through the im2col algorithm, as an example, the NumPyNet implementation shown in the snippet below make use of the function \texttt{asStride} to create a \texttt{view} of the input array: 
+
+\lstset{style=snippet}
+\begin{lstlisting}[language=Python, caption=NumPyNet version of AvgPool function, label=code:py_avgpool]
+import numpy as np
+
+class Avgpool_layer(object):
+
+  def __init__(self, size=(3, 3), stride=(2, 2)):
+
+    self.size = size
+    self.stride = stride
+    self.batch, self.w, self.h, self.c = (0, 0, 0, 0)
+    self.output, self.delta = (None, None)
+
+  def _asStride(self, input, size, stride):
+
+    batch_stride, s0, s1 = input.strides[:3]
+    batch,        w,  h  = input.shape[:3]
+    kx, ky     = size
+    st1, st2   = stride
+
+    # Shape of the final view
+    view_shape = (batch, 1 + (w - kx)//st1, 1 + (h - ky)//st2) + input.shape[3:] + (kx, ky)
+
+    # strides of the final view
+    strides = (batch_stride, st1 * s0, st2 * s1) + input.strides[3:] + (s0, s1)
+
+    subs = np.lib.stride_tricks.as_strided(input, view_shape, strides=strides)
+    # returns a view with shape = (batch, out_w, out_h, out_c, kx, ky)
+    return subs
+
+  def forward(self, input):
+
+    self.batch, self.w, self.h, self.c = input.shape
+    kx, ky = self.size
+    sx, sy = self.stride
+
+    input = input[:, : (self.w - kx) // sx*sx + kx, : (self.h - ky) // sy*sy + ky, ...]
+    # 'view' is the strided input image, shape = (batch, out_w, out_h, out_c, kx, ky)
+    view = self._asStride(input, self.size, self.stride)
+
+    # Mean of every sub matrix, computed without considering the pad(np.nan)
+    self.output = np.nanmean(view, axis=(4, 5))
+
+\end{lstlisting}
+
+A \texttt{view} is a special \texttt{numpy} object which retains the same information of the original array arranged in a different way, but without occupying more memory. In this case, the re-arrengement is very similar to an im2col, with the only differece that we are not bound to any number of dimensions. The resulting tensor has indeed 6 dimensions.
+Since no copy is produces in this operation we can obtain a faster execution.
+
+In pooling layer the backward function is similar to what we saw for convolutional layers, this time we don't have to compute the weights updates though, only the error to backprogate along the network.
+For maxpool layers, only the maximum input pixel for every window is involved in the backward pass. Indeed, if we consider the simple case in which the forward function is : 
+
+\begin{equation}
+ m = max(a, b)
+\end{equation}
+
+and, as described in the dedicated chapter, we know that $\frac{\partial C}{\partial m}$ is the error passed back from the next layer: the objective is to compute $\frac{\partial C}{\partial a}$ and $\frac{\partial C}{\partial b}$. 
+If $a > b$ we have : 
+
+\begin{equation}
+ m = a \quad \Rightarrow \quad \frac{\partial C}{\partial m} = \frac{\partial C}{\partial a}
+\end{equation}
+$m$ does not depends on $b$ so $\frac{\partial C}{\partial b} = 0$.
+
+{\bf FINISH}
+
+% According to \cite{nopool}, it is possible to build models exclusively out of convolutional layers without the need for pooling and reach state-of-the art performances 
+
 \subsection*{Shortcut Connections}
+
+An important advancement in network architecture has been brought by the introduction of Shortcut (or Residual) Connections \cite{residual}. Famously, ciao
+
+instead of learning a function $F(x)$ we try to learn $F(x) + x$
+
 \subsection*{Pixel Shuffle}
 \subsection*{Batch Normalization}
+\subsection*{Activations}
 \subsection*{Loss Function}
 \section{Timing}
 \section{}
