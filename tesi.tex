@@ -593,15 +593,28 @@ If $a > b$ we have :
 \end{equation}
 $m$ does not depends on $b$ so $\frac{\partial C}{\partial b} = 0$.
 
-{\bf FINISH}
+So the error is passed only to those pixel which value is maximum in the considered window, the other are zeros. 
+In figure \ref{fig:maxpool:ex} an example of forward and backward pass for a maxpool kernel of size 30 and stride 20.
+
+\begin{figure}[h]
+ \centering
+ \includegraphics[scale=0.53]{./images/maxpool_30_20.png}
+ \label{fig:maxpool:ex}
+ \caption{\it Max pooling applied to a test image: (left) the original image, (center) max pooling with a $30 \times 3$0 kernel and stride $20$, (right) max pooling errors image. Only few of the pixels are responsible for the error backpropagation. 
+ The images have been obtained using NumPyNet}
+\end{figure}
+
+The backward pass for the average pool layer is the same as for the CL, considering that in this case the "weights" are fixed.
 
 % According to \cite{nopool}, it is possible to build models exclusively out of convolutional layers without the need for pooling and reach state-of-the art performances 
 
 \subsection*{Shortcut Connections}
 
-An important advancement in network architecture has been brought by the introduction of Shortcut (or Residual) Connections \cite{residual}. Famously, ciao
+An important advancement in network architecture has been brought by the introduction of Shortcut (or Residual) Connections \cite{residual}. Famously, deep models suffer from {\bf degradation problems} after reaching a maximum 
 
 instead of learning a function $F(x)$ we try to learn $F(x) + x$
+
+During the back propagation the gradient of a higher layer can easily pass to the lower layer, without being mediated by any layer, which may cause vanishing or exploding gradient problem.
 
 \subsection*{Pixel Shuffle}
 \subsection*{Batch Normalization}
