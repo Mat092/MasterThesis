@@ -483,6 +483,7 @@ m4 = (d1 - d3)g2\quad\quad m3 = (d2 - d1)\frac{g0 - g1 + g2}{2}
 The two fractions in $m2$ and $m3$ involve only weight's values, so they can be computed once per filter. Moreover, the normal matrix multiplication is composed of 6 multiplications and 4 addition, while the winograd algorithm reduce the number of multiplication to 4, that is very significant, considering that a  single multiplication takes 7 clock-cycles and an addition only 3. 
 In Byron we provide the winograd algorithm for square kernels of size 3 and stride 1, since it is one of the most common combinations in Deep Learning and the generalization is not straightforward.
 
+If we consider a single output for the CL, the operation reads: 
 \begin{itemize}
  \item col2im backward
 \end{itemize}
@@ -610,14 +611,53 @@ The backward pass for the average pool layer is the same as for the CL, consider
 
 \subsection*{Shortcut Connections}
 
-An important advancement in network architecture has been brought by the introduction of Shortcut (or Residual) Connections \cite{residual}. Famously, deep models suffer from {\bf degradation problems} after reaching a maximum 
+An important advancement in network architecture has been brought by the introduction of Shortcut (or Residual) Connections \cite{residual}. Famously, deep models suffer from {\it degradation problems} after reaching a maximum depth. Adding more layers, thus increasing the depth of the model, saturates the accuracy which eventually starts to rapidly decrease. 
+The main cause of this dergradation is not overfitting, but numerical instability tied to gradient backpropagation: indeed, as the gradient is back-propagated through the network, repeated multiplications can make those gradients very small or, alternatevely, very big,
+This problem is well known in Deep Learning and takes the name of {\it vanishing}/{\it exploding gradients} and it makes almost impossible to train very large models, since early layers may not learn anything even after hundreds of epochs.
+A residual connection is a special shortcut which connects 2 different part of the network with a simple lnear combination.
+Instead of learning a function $F(x)$ we try to learn $H(x) = F(x) + x$, as shown in figure \ref{fig:shortcut}:
 
-instead of learning a function $F(x)$ we try to learn $F(x) + x$
+\begin{figure}[h]
+ \centering
+ \includegraphics[scale=0.4]{./images/shortcut.png}
+ \label{fig:shortcut}
+ \caption{\it Scheme of the shortcut layer as designed by the authors \cite{residual}. The output of the second layer become a linear combination of the input x and its own output.}
+\end{figure}
+During the back propagation the gradient of higher layers can easily pass to the lower layers, without being mediated, which may cause vanishing or exploding gradient.
+\\
+Even the shortcut connection can be implemented as a stand-alone layer, defined by the following parameters:
 
-During the back propagation the gradient of a higher layer can easily pass to the lower layer, without being mediated by any layer, which may cause vanishing or exploding gradient problem.
+\begin{itemize}
+ \setlength\itemsep{-0.2em}
+ \item {\bf index} is the index of the second input of this layer $x_2$ (the first one $x_1$ is the output of the previous layer).
+ \item {\bf alpha} the first coefficient of the linear combination, multiplied by $x_1$.
+ \item {\bf beta} the second coefficient of the linear combination, multiplied by $x_2$.
+\end{itemize}
+Both in NumPyNet and Byron, we chose to generalize the formula as: 
+
+\begin{equation}
+ H(x_1, x_2) = \alpha x_1 + \beta x_2
+\end{equation}
+Where $x_1$ is the output of the previous layer and $x_2$ is the output of the layer selected by \texttt{index}.
+The backward function is simply :
+
+\begin{equation}
+ \frac{\partial C}{\partial x_1} = \frac{\partial C}{\partial H}\frac{\partial H}{\partial x_1} = \delta \cdot \alpha
+\end{equation}
+for the first layer and :
+
+\begin{equation}
+ \frac{\partial C}{\partial x_2} = \frac{\partial C}{\partial H}\frac{\partial H}{\partial x_2} = \delta \cdot \beta
+\end{equation}
+for the second layer. Again, $\delta$ is the error backpropagated from the next layer. 
+Residuals connections were first introduced for image classification problems, but they rapidly become part of numerous models for every kind of application tied to Image Analysis.
 
 \subsection*{Pixel Shuffle}
+
 \subsection*{Batch Normalization}
+
+\cite{batchnorm}
+
 \subsection*{Activations}
 \subsection*{Loss Function}
 \section{Timing}
