@@ -252,8 +252,8 @@ The lenght of the step is given by the {\it learning rate} $\eta$, which is a hy
 \begin{figure}[h]
  \centering
  \includegraphics[scale=0.8]{./images/sgd.png}
- \label{fig:gd}
  \caption{\it Visual example of gradient descent for a model with 2 weights. The idea is to modify the weights to follow the direction of steepest descent for the landscape of the error function}
+ \label{fig:gd}
 \end{figure}
 The speed at which the algorithm converge to a solution and the precision of said solution are greatly influenced by the update rule. More complex and efficient update rules do exist, but they follow the same idea as the gradient descent.
 
@@ -335,8 +335,8 @@ Practically speaking, a convolution is performed by sliding a kernel of dimensio
 \begin{figure}[h]
  \centering
  \includegraphics[scale=1.]{./images/conv.png}
- \label{fig:convolution}
  \caption{\it Visual example of convolution of an image I 7x7 with a 3x3 kernel K.}
+ \label{fig:convolution}
 \end{figure}
 
 The convolution operation is also called $filtering$. By chosing the right kernel (filter) it is possible to highlight different features. For this reason the convolution operation is commonly used in image analysis: some of the most common applications are denoising, edge detection and edge enhancement. 
@@ -391,8 +391,8 @@ A huge speed up in performances is given by realising that a discrete convolutio
 \begin{figure}[h]
  \centering
  \includegraphics[scale=0.35]{./images/im2col.png}
- \label{fig:im2col}
  \caption{\it Scheme of the im2col algorithm using a $2 \times 2 \times 3$ filter with stride 1 on a $4 \times 4 \times 3$ image. The matrix multiplication is between a $n \times 12$ and a $12 \times 9$ matrixes.}
+ \label{fig:im2col}
 \end{figure}
 
 This re-arrengement is commonly called im2col. The main downside is that a lot more memory is needed to store the newly arranged matrix.
@@ -497,8 +497,8 @@ returns the maximum value of every window of the images super-posed by the kerne
 \begin{figure}[h]
  \centering
  \includegraphics[scale=0.35]{./images/maxpool.png}
- \label{fig:maxpool}
  \caption{\it Scheme of maxpool operations with a kernel of size $2 \times 2$ and stride $2$ over an image of size $4 \times 4$. Picture from CS231n}
+ \label{fig:maxpool}
 \end{figure}
 
 The latter instead, returns the average value of the window and can be seen as a convolution where every weight in the kernel is $\frac{1}{k_x \cdot k_y}$.
@@ -507,8 +507,8 @@ The results expected from an Average pooling operations are shown in figure \ref
 \begin{figure}[h]
  \centering
  \includegraphics[scale=0.7]{./images/avgpool_layer.png}
- \label{fig:avgpool:ex}
  \caption{\it Average pooling applied to a test image: (left) the original image, (center) average pooling with a $3 \times 3$ kernel, (right) average pooling with a $30 \times 30$ kernel. The images have been obtained using NumPyNet}
+ \label{fig:avgpool:ex}
 \end{figure}
 
 Other popular pooling functions include the $L^2$ norm of a rectangular neighborhood or a weighted average based on the distance from the central pixel.
@@ -600,9 +600,9 @@ In figure \ref{fig:maxpool:ex} an example of forward and backward pass for a max
 \begin{figure}[h]
  \centering
  \includegraphics[scale=0.53]{./images/maxpool_30_20.png}
- \label{fig:maxpool:ex}
  \caption{\it Max pooling applied to a test image: (left) the original image, (center) max pooling with a $30 \times 3$0 kernel and stride $20$, (right) max pooling errors image. Only few of the pixels are responsible for the error backpropagation. 
  The images have been obtained using NumPyNet}
+ \label{fig:maxpool:ex}
 \end{figure}
 
 The backward pass for the average pool layer is the same as for the CL, considering that in this case the "weights" are fixed.
@@ -620,8 +620,8 @@ Instead of learning a function $F(x)$ we try to learn $H(x) = F(x) + x$, as show
 \begin{figure}[h]
  \centering
  \includegraphics[scale=0.4]{./images/shortcut.png}
- \label{fig:shortcut}
  \caption{\it Scheme of the shortcut layer as designed by the authors \cite{residual}. The output of the second layer become a linear combination of the input x and its own output.}
+ \label{fig:shortcut}
 \end{figure}
 During the back propagation the gradient of higher layers can easily pass to the lower layers, without being mediated, which may cause vanishing or exploding gradient.
 \\
@@ -653,6 +653,50 @@ for the second layer. Again, $\delta$ is the error backpropagated from the next 
 Residuals connections were first introduced for image classification problems, but they rapidly become part of numerous models for every kind of application tied to Image Analysis.
 
 \subsection*{Pixel Shuffle}
+
+Using pooling and convolutional layers with non unitarian strides is a simple way to downsample the input dimension. 
+For some applications though, we may be interested in upsampling the input, for example : 
+
+\begin{itemize}
+ \setlength\itemsep{-0.2em}
+ \item in image to image processing (input and output are images of the same size) it is common to perform a compression to an internal encoding (e.g Deblurring, U-Net Segmentation). 
+ \item project feature maps to a higher dimensional space, i.d. to obtain a image of higher resolution (e.g Super-Resolution)
+\end{itemize}
+for this purposes the {\it transposed convolution} (also called {\it deconvolution}) was introduced. 
+The transposed convolution can be treated as a normal convolution with a sub-unitarian stride, by upsampling the input with empty rows and columns and then apply a single strided convolution, as shown in figure \ref{fig:deconv}:
+
+\begin{figure}[h]
+ \centering
+ \includegraphics[scale=0.35]{./images/deconv.png}
+ \caption{\it example of deconvolution: (left) a normal convolution with size 3 and stride 1, (right) after applying a "zeros upsampling" the convolution of size 3 and stride 1 become a deconvolution}
+ \label{fig:deconv}
+\end{figure}
+
+Although working, the transposed convolution is not efficient in terms of computational and memory cost, therefore not suited for modern convolutional neural network. 
+An alternative is the recently introduced {\it sub-pixel convolution} \cite{pixelshuffle} (also called Pixel Shuffle). The main advantages over the deconvolution operation is the absece of weights to train: indeed the operation perfermod by the Pixel Shuffle (PS) Layer is deterministic and it is very efficient if compared to the deconvolution, since it only performs a re-arrengement of the pixels. 
+
+Given a scale factor $r$, the PS organizes an input $H \times W \times C \cdot r^2$ into an output tensor $r \cdot H \times r \cdot W \times C$, which generally is the dimension of the high resolution space. 
+So, strictly speaking, the PS does not perform any upsample, since the number of pixels stays the same. 
+In figure \ref{fig:pixelshuffle1} is shown an example with $C=1$:
+
+\begin{figure}[h]
+ \centering
+ \includegraphics[scale=0.35]{./images/pixelshuffle.png}
+ \caption{\it Example of pixel shuffling proposed by the authors \cite{pixelshuffle}. In this example, $r^2$ features maps are re-arranged into a single-channeled high resolution output.}
+ \label{fig:pixelshuffle1}
+\end{figure}
+
+As suggested by the authors, the best practice to improve performances is to upscale from low resolution to High resolution only at the very end of the model. 
+In this way the CL can efficienlty produce an high number of low resolution feature maps that the PS can organize into the final output. 
+
+In both NumPyNet and Byron, the pixel shuffle layer is defined only by the \texttt{scale} parameter, which lead the entire transformation.
+in the first case, it is possible to implement forward and backward using the functions \texttt{split}, \texttt{reshape}, \texttt{concatenate} and \texttt{transpose} of the \texttt{numpy} library \cite{numpy}. 
+This implementation has been tested against \texttt{tensorflow}'s \texttt{depth\_to\_space} and \texttt{space\_to\_depth}.
+Despite beign available in most deep learning library, a low level  \texttt{C++} implementation for the PS algorithm is hard to find. 
+In Byron we propose a dynamic algorithm able to work for both \texttt{channel last} and \texttt{channel first} input. 
+The algorithm is essentially a re-indexing of the input array in six nested for-loops. The first soulution taken into account during the development was the contraction of the loops into a single one using divisions to obtain the correct indexes: however the amount of required divisions weights on the computational performances, given that divisions are the most expensive in terms of CPU clock-cycles. 
+
+The backward function of this layer does not involve any gradient computation: instead, it is the inverse of the re-arrengement performed in the forward function.
 
 \subsection*{Batch Normalization}
 
