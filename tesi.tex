@@ -721,13 +721,32 @@ Let's $M$ be the number of examples in the group and $\epsilon$ a small variable
 
 where $\gamma$ and $\beta$ are the trainable weights of this layer. In the case of a tensor of images of size $M \times H \times W \times C$ all the quantities are multidimensional tensor as well and all the operations are performed element-wise.
 
-The backward function can be computed following the chain rule for derivatives. As usual, define $\delta = \frac{\partial C}{\partial y}$ as the error coming from the next layer, the goal is to compute the updates for $\gamma$ and $\beta$ and the error for the previous layer. 
+The backward function can be computed following the chain rule for derivatives. As usual, define $\delta^l = \frac{\partial C}{\partial y}$ as the error coming from the next layer, the goal is to compute the updates for $\gamma$ and $\beta$ and the error for the previous layer. 
 The updates are straightforward: 
 
 \begin{align}
- &\frac{\partial C}{\partial \gamma} = \frac{\partial C}{\partial y_i} \cdot \frac{\partial y_i}{\partial \gamma} = \sum_{i=1}^{M} \delta_i \cdot \hat x_i \\
- &\frac{\partial C}{\partial \beta} = \frac{\partial C}{\partial y_i} \cdot \frac{\partial y_i}{\partial \beta} = \sum_{i=1}^M \delta_i 
+ &\frac{\partial C}{\partial \gamma} = \frac{\partial C}{\partial y_i} \cdot \frac{\partial y_i}{\partial \gamma} = \sum_{i=1}^{M} \delta_i^l \cdot \hat x_i \\
+ &\frac{\partial C}{\partial \beta} = \frac{\partial C}{\partial y_i} \cdot \frac{\partial y_i}{\partial \beta} = \sum_{i=1}^M \delta_i^l 
 \end{align}
+
+while the error requires more steps:
+
+\begin{equation}
+ \frac{\partial C}{\partial x} := \delta^{l-1} = \delta^l \cdot \frac{\partial y}{\partial \hat x} \cdot []
+\end{equation}
+
+where : 
+
+\begin{align}
+ ciao
+\end{align}
+
+By considering all the derivatives, we find :
+
+\begin{equation}
+ ciao
+\end{equation}
+
 
 Knowing the correct operations, an example of implementation is shown in the snippet \ref{code:py_batchnorm}: 
 
@@ -827,7 +846,7 @@ An important role in neural network is played by the choice of activation functi
 \end{itemize}
 
 
-\begin{table*}
+\begin{table*}[h]
 \centering
 \begin{adjustbox}{max width=\textwidth}
 \begin{tabular}{lcc}
