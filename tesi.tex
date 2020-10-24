@@ -16,7 +16,7 @@
 \usepackage{textcomp}
 \usepackage{adjustbox}
 \usepackage{hyperref}
-
+\usepackage{svg}
 
 \definecolor{grayrow}{rgb}{0.85, 0.85, 0.85}
 \definecolor{lightgray}{rgb}{0.83, 0.83, 0.83}
@@ -133,8 +133,9 @@ The increasing amount of data produced by modern infrastructures requires instru
 For these reasons in the last decades, Machine Learning (ML) and Deep Learning (DL) techniques saw exponential growth in publications and research from the scientific community.
 In this work are proposed two new frameworks for Deep Learning: Byron written in C++, for fast analysis in a parallelized CPU environment, and NumPyNet written in Python, which provides a clear and understandable interface on deep learning tailored around readability. 
 Byron will be tested on the field of Single Image Super-Resolution for NMR imaging of brains (Nuclear Magnetic Resonance) using pre-trained models for x2 and x4 upscaling which exhibit greater performance than most common non-learning-based algorithms. 
-The work will show that the reconstruction ability of DL models surpasses the interpolation of a bicubic algorithm even with images totally different from the dataset in which they were trained. 
-Ulterior studies will focus on how the same algorithms perform with different conditions for the input, showing a large variance between results, in particular in the case of a x4 upsample. 
+The work will show that the reconstruction ability of DL models surpasses the interpolation of a bicubic algorithm even with images totally different from the dataset in which they were trained, indicating that the {\it generalization} abilities of those deep learning models can be sufficient to perform well even on biomedical data, which contains particular shapes and textures.
+Ulterior studies will focus on how the same algorithms perform with different conditions for the input, showing a large variance between results. 
+
 
 \newpage
 \normalsize 
@@ -148,19 +149,20 @@ This thesis work aim is to evaluate the upsampling perfomances of pre-trained De
 The first chapter focuses on the fundamentals of the techniques named in this work with special emphasis on Deep Learning, Super Resolution and image analysis, essential for understanding the implementations of the two frameworks and the main methodologies applied during the study. 
 \\
 The second chapter includes the mathematical and numerical explanations of the most important algorithms implemented in Byron and NumPyNet and a brief description of the two frameworks. 
+Moreover I will report the timing measurements againts a popular deep learning framworks called Tensorflow for the most importants layers in image analysis.
 \\
 In the third chapter, I firstly describe the models in details by focusing on the reasoning the respective authors put during the construction of the architectures. 
 Then the attention is moved to the description of the dataset used for training (DIV2K) and for testing (NMR) and how the images has been fed to the networks. 
 \\
-The final results are collected in the last chapter divided into subsection which answer different questions: how well DL models can reconstruct an High Resolution image starting from a Low Resolution one? How the orientation of the input influences the result? In which parts of the images the models struggle the most? 
+The final results are collected in the last chapter divided into subsection which answer different questions: how well DL models can reconstruct an High Resolution image starting from a Low Resolution one? How well they can {\it generalize} their ``knowledge'' on new data?  How the orientation of the input influences the result? In which parts of the images the models struggle the most? 
 The methods has been evaluated through common metrics in image analysis: {\it Peak Signal to Noise Ratio} (PSNR) and {\it Structural SIMilarity index} (SSIM). 
-Secondarily, to remove eventual backgrounds effect from the analysis, we introduced FSL BET (Brain Extraction Tool) which is a software frequently used in NMR studies to mask images and remove uninteresting data.
+Secondarily, to remove eventual backgrounds effect from the analysis, we introduced FSL BET (Brain Extraction Tool) which is a software frequently used in NMR studies to mask images and remove uninteresting data.  
 \\
 In the end, I discuss the conclusions and propose possibile future developments for the work.
 
 \section{Neural Network and Deep Learning}
 
-  A neural network is an interconnected structure of simple procedurals units, called nodes. Their functionality is inspired by the animals' brain and from the works on learning and neural plasticity of Donald Hebb \cite{hebb-learning}. From his book :
+  A neural network is an interconnected structure of simple procedurals units, called nodes. Their functionality is inspired by the animals' brain and from the works on learning and neural plasticity of Donald Hebb \cite{hebb-learning}. From his book:
 
 \begin{quote}
  \begin{center}
@@ -180,7 +182,7 @@ In general, there are 3 different approaches to learning:
 
 \begin{itemize}
  \item {\bf supervised} It exists a labeled dataset in which the relationship between features (input) and expected output is known. 
- During training, the model is presented with many examples and it corrects its answers based on the correct response.  
+ During training, the model is presented with many examples and it corrects its answers based on the expected response.  
  Some problems tied to supervised algorithms are classification, regression, object detection, segmentation and super-resolution.
  \item {\bf unsupervised} In this case, a labeled dataset does not exist, only the inputs data are available. 
  The training procedure must be tailored around the problem under study. Some examples of unsupervised algorithms are clustering, autoencoders, anomaly detection.
@@ -193,7 +195,7 @@ This work will focus on models trained using labeled samples, therefore in a sup
 \subsection*{Perceptron}
 
 The Perceptron (also called \textit{artificial neuron}) is the fundamental unit of every neural network and it is a simple model for a biological neuron, based on the works of Rosenblatt \cite{perceptron}. 
-The \textit{perceptron} receives $N$ input values $x_1, x_2, ... x_N$ and the output is just a linear combination of the inputs plus a bias :
+The \textit{perceptron} receives $N$ input values $x_1, x_2, ... x_N$ and the output is just a linear combination of the inputs plus a bias:
 
 \begin{equation}
 y = \sigma(\sum_{k=1}^N w_kx_k + w_0)
@@ -212,7 +214,7 @@ H(x) :=
 \end{equation}
 
 In this case the perceptron is a \textit{linear discriminator} and as such, it is able to learn an hyperplane which linearly separates two set of data.
-The weights are tuned during the training phase following the given update rule, usually :
+The weights are tuned during the training phase following the given update rule, usually:
 
 \begin{equation}
  \bm{w}_{n+1} = \bm{w}_n + \eta (t - y)\bm{x}
@@ -228,12 +230,12 @@ Repeating this process will lead to a convergence only if the two classes are li
 
 The direct generalization of a simple perceptron is the \textit{Fully Connected Artificial Neural Network} (or {\it Multy Layer Perceptron}). 
 It is composed by many Perceptron-like units called nodes, any one of them performs the same computation as formula \ref{eq:perceptron} and \textit{feed} their output \textit{forward} to the next layer of nodes. 
-A typical representation of this type of network is shown in figure \ref{fig:ann}:
+A typical representation of this type of network is shown in figure \ref{fig:ann}.
 
 \begin{figure}[h]
  \centering
- \includegraphics[scale=0.5]{./images/neural_net.png}
- \caption{{\it A common representation of a neural network: a single node works as the perceptron described before.}}
+ \includegraphics[scale=0.35]{./images/neural_net.png}
+ \caption{{\it A common representation of a neural network: a single node works as the perceptron described before. The network is composed by the input layer, the hidden layers and the output layer. The depth of the network is determined by the number of hidden layers.}}
  \label{fig:ann}
 \end{figure}
 
@@ -252,7 +254,7 @@ As before, $\sigma$ is the activation function which can be different for every 
 How to chose the best activation function is yet to be understood, and most works rely on experimental results.
 
 In a supervised environment, the model output is compared to the desired output ({\it truth}) by means of a cost function. 
-An example of cost function is the sum of squared error : 
+An example of cost function is the sum of squared error: 
 
 \begin{equation}
   C(W) = \frac{1}{N} \sum_{j=1}^{N} (y_j - t_j)^2
@@ -274,9 +276,9 @@ Given a cost funtion $C(w)$, the most simple one is the gradient descent:
 The core idea is to modify the parameters by a small step in the direction that minimizes the error function
 The lenght of the step is given by the {\it learning rate} $\eta$, which is a hyperparameter chosen by the user, while the direction of the step is given by $-\nabla_w C$, which point towards the steepest descent of the function landscape.
 
-\begin{figure}[h]
+\begin{figure}[H]
  \centering
- \includegraphics[scale=0.8]{./images/sgd.png}
+ \includegraphics[scale=0.35]{./images/sgd.png}
  \caption{\it Visual example of gradient descent for a model with 2 weights. The idea is to modify the weights to follow the direction of the steepest descent for the landscape of the error function}
  \label{fig:gd}
 \end{figure}
@@ -302,7 +304,7 @@ the vector of errors of layer $l$. Then we can write the 4 equations of back pro
   &\frac{\partial C}{\partial b_l^j} = \delta_l^j & \mbox{The j-th bias update} \\
   &\frac{\partial C}{\partial w_l^{j k}} = a_{l-1}^k \delta_{l}^{j} & \mbox{The update for the weight indexed $j,k$ }
 \end{align}
-where  $\odot$ is the element-wise product.
+where  $\odot$ is the Hadamard's product.
 Those equations can be generalized for others kind of layers, as I will show in the next chapters. 
 
 The full training algorithm is: 
@@ -329,7 +331,6 @@ This behaviour is slightly different for Super-Resolution: indeed, when training
 The dataset is built from a single series of high resolution (HR) images which are downsampled to obtain the low resolution (LR) counterpart: the couples LR-HR are fed to the network respectively as input and label just like in a classification problem; this time though, the network will map a smaller feature space into a larger one. 
 
 The models I'm going to use in this work are trained on images downsampled using the {\it bicubic interpolation}.
-
 
 \subsection{Bicubic Interpolation}
 
@@ -387,7 +388,7 @@ The SSIM index is defined as:
  SSIM(I, K) = \frac{1}{N} \sum_{i=1}^{N} SSIM_i(x_i, y_i)
 \end{equation}
 
-Where $N$ is the number of windows in the images, usually of size $11 \times 11$ or $8 \times 8$. For every box, the index is : 
+Where $N$ is the number of windows in the images, usually of size $11 \times 11$ or $8 \times 8$. For every box, the index is: 
 
  \begin{equation}
     \hspace{-0.75cm}
@@ -420,7 +421,7 @@ As stated before, NMR is applied to nuclei which posses magnetic properties, the
 Considering an ensemble of ${}^1H$ with $I = \frac{1}{2}$, if a static magnetic field $\bm{B}_0 = H_0 \hat z$ is applied, the magnetic momenta of the nucleus will orientate themselves along the parallel or anti-parallel direction of the fields, assuming two discrete values of energy. 
 According to Boltzmann statistic, the majority of nuclei will orientate in such a way to minimize the energy (parallel to $\bm{B}_0$).
 
-The energy difference between the two level is given by : 
+The energy difference between the two level is given by: 
 
 \begin{equation}
  \Delta E = \gamma \left(\frac{h}{2\pi}B_0\right) = \left(\frac{h}{2\pi}\omega_0\right)
@@ -432,7 +433,7 @@ The energy that must be given to perturb the system from its equilibrium conditi
 The perturbation is represented by a radio-frequency electromagnetic field $\bm{B}_1$ perpendicular to $\bm{B}_0$, oscillating at the Larmor frequency of the system $\omega_0$.
 After removal of the perturbation, it is possible to measure the relaxation times $T_1$ and $T_2$ of the longitudinal and trasversal components of the nuclei magnetization. 
 
-For the nuclei, the temporal evolution of $\bm{\mu}$ under the influence of the static fields $\bm{B}_0$ is given by :
+For the nuclei, the temporal evolution of $\bm{\mu}$ under the influence of the static fields $\bm{B}_0$ is given by:
 
 \begin{equation}
   \frac{d \bm{\mu}}{d t} = \gamma \bm{\mu} \times \bm{B}_0
@@ -534,7 +535,20 @@ The library is also completely wrapped using \textsf{Cython} to enlarge the rang
 The complete guide about its installation is provided; the installation can be done using \textsf{CMake}, \textsf{Make} or \textsf{Docker} and the \textsf{Python} version is available with a simple \textsf{setup.py}.
 The testing of each function is performed using \textsf{Pytest} framework against the \textsf{NumPyNet} implementation (faster and lighter to import than \textsf{Tensorflow}) \cite{nicotesi}.
 
-\section{Convolutional Neural Network}
+\section{Layers}
+
+As described above, a neural network can be considered as a composition of function: for this reason every Deep Learning framework (e.g. Keras/Tensorflow, Pytorch, Darknet) implement each function as an independent object called {\it Layer}. In Byron and NumPyNet, each layer contains at least 3 methods:
+\begin{itemize}
+ \setlength\itemsep{-0.3em}
+ \item {\bf forward} the forward method compute the output of the layer, given as input the previous output. 
+ \item {\bf backward} the backward method is essential for the training phase of the model: indeed, it computes all the updates for the layer weights and backpropagates the error to the previous layers in the chain.
+ \item {\bf update} the update method applies the given update rules to the layer's weights.
+\end{itemize}
+By stacking different kind of layers one after another, it is possible to build 
+complex models with tens of millions of parameters. 
+For the purposes of this work, I'm going to describe layers used in super resolution, however, Byron is developed also for different applications (object detection, classification, segmentation, style transfer, natural language processing etc...) and as such, many more layers are available.   
+
+\subsection*{Convolutional Layer}
 
 A Convolutional Neural Network (CNN) is a specialized kind of neural network for processing data that has known grid-like topology \cite{Goodfellow-et-al-2016}, like images, that can be considered as a grid of pixels.
 The name indicates that at least one of the functions employed by the network is a convolution. In a continuos domain the convolution between two functions $f$ and $g$ is defined as: 
@@ -550,29 +564,14 @@ For Image Processing applications we can define a 2-dimensional discrete version
 where $C[i, j]$ is the pixel value of the output image and $N$, $M$ are the kernel dimensions.
 Practically speaking, a convolution is performed by sliding a kernel of dimension $N \times M$ over the image, each kernel position corresponds to a single output pixel, the value of which is calculated by multiplying together the kernel value and the underlaying pixel value for each cell of the kernel and summing all the results, as shown in figure \ref{fig:convolution}:
 
-\begin{figure}[h]
+\begin{figure}[H]
  \centering
- \includegraphics[scale=1.]{./images/conv.png}
- \caption{\it Visual example of convolution of an image I 7x7 with a 3x3 kernel K}
+ \includegraphics[scale=0.5]{./images/conv.png}
+ \caption{\it Visual representation of a convolution of an Image $I$ with a kernel of size 3}
  \label{fig:convolution}
 \end{figure}
 
 The convolution operation is also called $filtering$. By chosing the right kernel (filter) it is possible to highlight different features. For this reason the convolution operation is commonly used in image analysis: some of the most common applications are denoising, edge detection and edge enhancement. 
-
-\section{Layers}
-
-As described above, a neural network can be considered as a composition of function: for this reason every Deep Learning framework (e.g. Keras/Tensorflow, Pytorch, Darknet) implement each function as an independent object called {\it Layer}. In Byron and NumPyNet, each layer contains at least 3 methods:
-\begin{itemize}
- \setlength\itemsep{-0.3em}
- \item {\bf forward} the forward method compute the output of the layer, given as input the previous output. 
- \item {\bf backward} the backward method is essential for the training phase of the model: indeed, it computes all the updates for the layer weights and backpropagates the error to the previous layers in the chain.
- \item {\bf update} the update method applies the given update rules to the layer's weights.
-\end{itemize}
-By stacking different kind of layers one after another, it is possible to build 
-complex models with tens of millions of parameters. 
-For the purposes of this work, I'm going to describe layers used in super resolution, however, Byron is developed also for different applications (object detection, classification, segmentation, style transfer, natural language processing etc...) and as such, many more layers are available.   
-
-\subsection*{Convolutional Layer}
 
 The convolutional layer (CL) object is the most used layer in DL image analysis, therefore its implementation must be as efficient as possible.
 Its purpose is to perform multiple (sometimes thousands) convolution over the input to extract different high-level features, which are compositions of many low-level attributes of the image (e.g edges, simple shapes).
@@ -597,7 +596,7 @@ Given the parameters, it is straightforward to compute the number of weights and
 \end{align}
 Note that the number of weights does not depend on the input spatial size but only on its depth. It is important because a fully convolutional network can receives images of any size as long as they have the correct depth. Moreover, using larger inputs do not requires more weights, as is the case for fully connected structure. 
 
-The output dimensions are $(out\_H, out\_W, n)$ where :
+The output dimensions are $(out\_H, out\_W, n)$ where:
 \begin{align}
  out\_H &= \lfloor\frac{H - k_x + p}{s_x}\rfloor + 1 \\
  out\_W &= \lfloor\frac{W - k_y + p}{s_y}\rfloor + 1
@@ -710,7 +709,7 @@ In the case the windows of kernels overlap, updates are the sum of all the contr
 
 Pooling operations are down-sampling operations, so that the spatial dimensions of the input are reduced. Similarly to what happens in a CL, in pooling layers a 3-D kernel of size $k_x \times k_y \times C$ slides across an image of size $H \times W \times C$, however the operation performed by this kind of layers is fixed and does not change during the course of training.
 The two main pooling functions are max-pooling and average-pooling: as suggested by the names, the former  
-returns the maximum value of every window of the images super-posed by the kernel, as shown in figure \ref{fig:maxpool}:
+returns the maximum value of every window of the images super-posed by the kernel, as shown in figure \ref{fig:maxpool}.
 
 \begin{figure}[h]
  \centering
@@ -720,7 +719,7 @@ returns the maximum value of every window of the images super-posed by the kerne
 \end{figure}
 
 The latter instead, returns the average value of the window and can be seen as a convolution where every weight in the kernel is $\frac{1}{k_x \cdot k_y}$.
-The results expected from an Average pooling operations are shown in figure \ref{fig:avgpool:ex}:
+The results expected from an Average pooling operations are shown in figure \ref{fig:avgpool:ex}.
 
 \begin{figure}[h]
  \centering
@@ -736,24 +735,15 @@ The modification brought by pooling is helpful in different ways: first of all, 
 Moreover, in all cases, pooling helps to make representation approximately invariant to small translation of the input and invariance to local translation can be a useful property if the objective is to decide wether a feature is present rather than where it is located \cite{Goodfellow-et-al-2016}.
 The reductions of features can also prevent over-fitting problems during training, improving the general performances of the model. 
 
-A pooling layer is defined by the same parameters as a CL, minus the number of filters:
-
-\begin{itemize}
- \setlength\itemsep{-0.2em}
- \item [-] {\bf kernel size} : it is the size of the sliding filters. The depth of the filters is decided by the depth of the input images (which is the number of channels.). The remanining 2 dimensions (widht and height) can be indipendent from one another, but most implementations require square kernels.
- \item [-] {\bf strides} : defines the movement of the filters. With a low stride (e.g. unitary) the windows tends to overlap. With higher stride values we have less overlap (or none) and the dimension of the output decrease. Usually pooling operations have a stride of 2.
- \item [-] {\bf padding} : is the dimensions of an artificial enlargement of the input to allow the application of filters on borders. Usually, it can be interpreted as the number of rows/columns of pixel to add to the input, however some libraries (e.g Keras) consider it only as binary: in case is true, only the minimum number of rows/columns are appended to keep the same spatial dimension. Most often than not, no padding is applied during pooling operations.
-\end{itemize}
-
-The output dimensions for Pooling layers are the same as for CLs, however, they have no weights to be trained.
+A pooling layer is defined by the same parameters as a CL, minus the number of filters; moreover, also the output dimensions for Pooling layers are the same as for CLs, however, they have no weights to be trained.
 
 Due to the similarities with the CL it is possible to implement a pooling layers through the im2col algorithm, as an example, the NumPyNet implementation shown in the snippet below make use of the function \texttt{asStride} to create a \texttt{view} of the input array: 
 
 \lstset{style=snippet}
-\begin{lstlisting}[language=Python, caption=NumPyNet version of AvgPool function, label=code:py_avgpool]
+\begin{lstlisting}[language=Python, caption=NumPyNet version of Maxpool function, label=code:py_avgpool]
 import numpy as np
 
-class Avgpool_layer(object):
+class Maxpool_layer(object):
 
   def __init__(self, size=(3, 3), stride=(2, 2)):
 
@@ -769,32 +759,37 @@ class Avgpool_layer(object):
     kx, ky     = size
     st1, st2   = stride
 
-    # Shape of the final view
     view_shape = (batch, 1 + (w - kx)//st1, 1 + (h - ky)//st2) + input.shape[3:] + (kx, ky)
 
-    # strides of the final view
     strides = (batch_stride, st1 * s0, st2 * s1) + input.strides[3:] + (s0, s1)
 
     subs = np.lib.stride_tricks.as_strided(input, view_shape, strides=strides)
-    # returns a view with shape = (batch, out_w, out_h, out_c, kx, ky)
+    
     return subs
 
   def forward(self, input):
 
-    self.batch, self.w, self.h, self.c = input.shape
-    kx, ky = self.size
-    sx, sy = self.stride
+    kx , ky  = self.size
+    st1, st2 = self.stride
+    _, w, h, _ = self.input_shape
 
-    input = input[:, : (self.w - kx) // sx*sx + kx, : (self.h - ky) // sy*sy + ky, ...]
-    # 'view' is the strided input image, shape = (batch, out_w, out_h, out_c, kx, ky)
-    view = self._asStride(input, self.size, self.stride)
+    view = self._asStride(input)
 
-    # Mean of every sub matrix, computed without considering the pad(np.nan)
-    self.output = np.nanmean(view, axis=(4, 5))
+    self.output = np.nanmax(view, axis=(4,5))
+
+    new_shape = view.shape[:4] + (kx*ky, )
+
+    self.indexes = np.nanargmax(view.reshape(new_shape), axis=4)
+
+    self.indexes = np.unravel_index(self.indexes.ravel(), shape=(kx, ky))
+
+    self.delta = np.zeros(shape=self.out_shape, dtype=float)
+
+    return self
 
 \end{lstlisting}
 
-A \texttt{view} is a special \texttt{numpy} object which retains the same information of the original array arranged in a different way, but without occupying more memory. In this case, the re-arrengement is very similar to an im2col, with the only differece that we are not bound to any number of dimensions. The resulting tensor has indeed 6 dimensions.
+A \texttt{view} is a special \texttt{numpy} object which retains the same information of the original array arranged in a different way, but without occupying more memory. In this case, the re-arrengement is very similar to an im2col, with the only difference that we are not bound to any number of dimensions. The resulting tensor has indeed 6 dimensions.
 Since no copy is produces in this operation we can obtain a faster execution.
 
 In pooling layer the backward function is similar to what we saw for convolutional layers, this time we don't have to compute the weights updates though, only the error to back-progate along the network.
@@ -815,7 +810,7 @@ $m$ does not depends on $b$ so $\frac{\partial C}{\partial b} = 0$.
 So the error is passed only to those pixels which value is maximum in the considered window, the other are zeros. 
 In figure \ref{fig:maxpool:ex} an example of forward and backward pass for a maxpool kernel of size 30 and stride 20.
 
-\begin{figure}[h]
+\begin{figure}[H]
  \centering
  \includegraphics[scale=0.53]{./images/maxpool_30_20.png}
  \caption{\it Max pooling applied to a test image: (left) the original image, (center) max pooling with a $30 \times 3$0 kernel and stride $20$, (right) max pooling errors image. Only few of the pixels are responsible for the error backpropagation. 
@@ -823,7 +818,7 @@ In figure \ref{fig:maxpool:ex} an example of forward and backward pass for a max
  \label{fig:maxpool:ex}
 \end{figure}
 
-The backward pass for the average pool layer is the same as for the CL, considering that in this case the "weights" are fixed.
+The backward pass for the average pool layer is the same as for the CL, considering that in this case the ``weights'' are fixed.
 
 % According to \cite{nopool}, it is possible to build models exclusively out of convolutional layers without the need for pooling and reach state-of-the art performances 
 
@@ -857,12 +852,12 @@ Where $x_1$ is the output of the previous layer and $x_2$ is the output of the l
  \item {\bf beta} the second coefficient of the linear combination, multiplied by $x_2$.
 \end{itemize}
 .
-The backward function is simply :
+The backward function is simply:
 
 \begin{equation}
  \frac{\partial C}{\partial x_1} = \frac{\partial C}{\partial H}\frac{\partial H}{\partial x_1} = \delta \cdot \alpha
 \end{equation}
-for the first layer and :
+for the first layer and:
 
 \begin{equation}
  \frac{\partial C}{\partial x_2} = \frac{\partial C}{\partial H}\frac{\partial H}{\partial x_2} = \delta \cdot \beta
@@ -977,74 +972,38 @@ Knowing the correct operations, an example of implementation is shown in the sni
 \begin{lstlisting}[language=Python, caption=NumPyNet version of batchnorm function, label=code:py_batchnorm]
 
 def forward(self, inpt):
-  '''
-  Forward function of the BatchNormalization layer. It computes the output of
-  the layer, the formula is :
-                  output = scale * input_norm + bias
-  Where input_norm is:
-                  input_norm = (input - mean) / sqrt(var + epsil)
-  where mean and var are the mean and the variance of the input batch of
-  images computed over the first axis (batch)
-  Parameters:
-    inpt  : numpy array, batch of input images in the format (batch, w, h, c)
-  '''
 
   self._check_dims(shape=self.input_shape, arr=inpt, func='Forward')
 
-  # Copy input, compute mean and inverse variance with respect the batch axis
   self.x    = inpt.copy()
-  self.mean = self.x.mean(axis=0)                             # shape = (w, h, c)
-  self.var  = 1. / np.sqrt((self.x.var(axis=0)) + self.epsil) # shape = (w, h, c)
-  # epsil is used to avoid divisions by zero
+  self.mean = self.x.mean(axis=0)                             
+  self.var  = 1. / np.sqrt((self.x.var(axis=0)) + self.epsil)
 
-  # Compute the normalized input
-  self.x_norm = (self.x - self.mean) * self.var # shape (batch, w, h, c)
-  self.output = self.x_norm.copy() # made a copy to store x_norm, used in Backward
+  self.x_norm = (self.x - self.mean) * self.var 
+  self.output = self.x_norm.copy() 
 
-  # Init scales and bias if they are not initialized (ones and zeros)
-  if self.scales is None:
-    self.scales = np.ones(shape=self.out_shape[1:])
-
-  if self.bias is None:
-    self.bias = np.zeros(shape=self.out_shape[1:])
-
-  # Output = scale * x_norm + bias
   self.output = self.output * self.scales + self.bias
 
-  # output_shape = (batch, w, h, c)
   self.delta = np.zeros(shape=self.out_shape, dtype=float)
 
   return self
 
 def backward(self, delta=None):
-  '''
-  BackPropagation function of the BatchNormalization layer. Every formula is a derivative
-  computed by chain rules: dbeta = derivative of output w.r.t. bias, dgamma = derivative of
-  output w.r.t. scales etc...
-  Parameters:
-    delta : the global error to be backpropagated, its shape should be the same
-      as the input of the forward function (batch, w, h ,c)
-  '''
-
-  check_is_fitted(self, 'delta')
-  self._check_dims(shape=self.input_shape, arr=delta, func='Forward')
 
   invN = 1. / np.prod(self.mean.shape)
 
   # Those are the explicit computation of every derivative involved in BackPropagation
-  # of the batchNorm layer, where dbeta = dout / dbeta, dgamma = dout / dgamma etc...
 
-  self.bias_update = self.delta.sum(axis=0)                   # dbeta
-  self.scales_update = (self.delta * self.x_norm).sum(axis=0) # dgamma
+  self.bias_update = self.delta.sum(axis=0)                   
+  self.scales_update = (self.delta * self.x_norm).sum(axis=0) 
 
-  self.delta *= self.scales                                    # self.delta = dx_norm from now on
+  self.delta *= self.scales                                   
 
-  self.mean_delta = (self.delta * (-self.var)).mean(axis=0)    # dmu
+  self.mean_delta = (self.delta * (-self.var)).mean(axis=0)    
 
   self.var_delta = ((self.delta * (self.x - self.mean)).sum(axis=0) *
-                    (-.5 * self.var * self.var * self.var))     # dvar
+                    (-.5 * self.var * self.var * self.var))     
 
-  # Here, delta is the derivative of the output w.r.t. input
   self.delta = (self.delta * self.var +
                 self.var_delta * 2 * (self.x - self.mean) * invN +
                 self.mean_delta * invN)
@@ -1191,7 +1150,7 @@ In figure \ref{fig:activations} is shown the effect of some functions along with
  \includegraphics[scale=0.5]{./images/activation_elu}
  \includegraphics[scale=0.5]{./images/activation_relu.png}
  \includegraphics[scale=0.5]{./images/activation_logistic.png}
- \caption{\it Activation functions applied on test image. From top to bottom : Elu, Relu and Logistic.}
+ \caption{\it Activation functions applied on test image. From top to bottom: Elu, Relu and Logistic.}
  \label{fig:activations}
 \end{figure}
 
@@ -1199,7 +1158,7 @@ The most used activation functions is undoubtedly the {\tt ReLU} activation (Rec
 
 \begin{itemize}
  \setlength\itemsep{-0.2em}
- \item Sparsity : a sparse representation of data is exponentially more efficient in comparison of a dense one.
+ \item Sparsity: a sparse representation of data is exponentially more efficient in comparison of a dense one.
  \item Vanish Gradient Reduction, since the derivatives does not vanishes during Deeper backpropagation.
  \item Easy and fast computation of both forward and backward.
 \end{itemize}
@@ -1212,7 +1171,7 @@ There are many kinds of loss functions, and none of them is able to work with ev
 One important property is the differentiability of those error functions, since they will be the starting point of chain rule for derivatives used in {\it Error Backpropagation}.
 Broadly speaking, loss functions can be separated into two categories: classification losses and regression losses. In the first case we want to predict a finite number of categorical values (classes), while in the second case the prediction is performed over a series of continuos values.
 The most common cost functions for Super Resolution are {\it Mean Squared Error} (MSE) and {\it Mean Absolute Error} (MAE), also called L2 loss and L1 loss. 
-The former is defined as : 
+The former is defined as: 
 
 \begin{equation}
  MSE = \frac{1}{N} \sum_{i=1}^{N} (y_i - t_i)^2
@@ -1230,28 +1189,40 @@ In MAE we replace the squared error with the absolute difference:
 
 Both models used in this work have been trained using the L1 loss function. 
 
-
 \section{Timing}
 
 I tested {\tt Byron} performances on single layers through its python wrap {\tt Pyron} against the popular deep learning framework {\tt Tensorflow} on CPU.
-I measured the forward and backward times on 30 repetitions, scanning over the parameters of the different layers as fuctions of the number of threads, for the most important layers in image processing applications: Convolutional and Max-Pool.
-The Number of Threads indicate the level of parallelization involved during computations.
-
+I measured the forward and backward times on 30 repetitions, scanning over the parameters of the different layers as fuctions of the number of threads, for the most important layers in image processing applications: Convolutional, Max-Pool and Pixel-shuffle layer.
+The number of threads indicates the level of parallelization involved during computations.
+The inputs are randomly generated tensors of dimensions $16 \times 512 \times 512 \times 3$ which should resemble a batch of images. 
+The content of said images does not really matter, since we are only interested in measuring the processing times.
 For the first case, the results for {\it forward} and {\it backward} functions are summarized in figure \ref{fig:time-conv}:
 
 \begin{figure}[H]
 \centering
-\includegraphics[scale=0.3]{./images/convolutional_timing.png}
-\caption{\it Comparisons between time to perform forward (left) and backward (right) for Convolutional Layer in Byron and Tensorflow on a 4D tensor of size $16 \time 512 \times 512 \times 3$ for size 3, stride 1 and 100 filters.}
+\includegraphics[scale=0.3]{./images/convolutional_timing_3_1.png}
+\caption{\it Comparisons between time to perform forward (left) and backward (right) for Convolutional Layer in Byron and Tensorflow on a 4D tensor of size $16 \times 512 \times 512 \times 3$ for size 3, stride 1 and 100 filters.}
 \label{fig:time-conv}
 \end{figure}
 
-As expected, the performances improve with higher numbers of threads, however this behaviour last for less than 10, after which the times 
+As expected, the performances improve with higher numbers of threads, however this behaviour last for less than 10, after which the times remain constant for both implementations.
 In particular, for {\tt Byron}, the algorithm's time seems to be really unstable with higher number of opened threads. 
 Nonetheless, the CPU times of {\tt Tensorflow} are consistently better that {\tt Byron}.
-Those considerations highlight that the there may be problems in threads management during the operations in {\tt Byron}, which do not influence the outputs, but greatly deteriorate timing performances.
-\\
-The second case taken into consideration is MaxPool Layer and the results are summarized in figure \ref{fig:time-max-3}:
+Those considerations highlight that there may be problems in threads management during the operations in {\tt Byron}, which do not influence the outputs, but greatly deteriorate timing performances.
+If we move to a bigger stride value, like 2, the results change as shown in \ref{fig:time-conv-3-2}. 
+In particular, the trends become slighlty more stable a not far from what we are expecting.
+The conditions $size=3$ and $stride=1$ are also the condition for the {\it Winograd Algorithm}: this can reduce the range of code to check to find the sources of times instability.
+Another considerations come from the fact that passing from $stride=1$ to $stride=2$ in both axis, reduce the number of operations of a factor 4, which means, at least, that the single thread performances should reduce the time cost of 4 time.
+In {\tt Byron} forward though, the time reduces to roughly $40\%$, while in {\tt Tensorflow} the speed up seems consistent with that consideration.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{./images/convolutional_timing_3_2.png}
+\caption{\it Comparisons between time to perform forward (left) and backward (right) for Convolutional Layer in Byron and Tensorflow on a 4D tensor of size $16 \times 512 \times 512 \times 3$ for size 3, stride 2 and 100 filters.}
+\label{fig:time-conv-3-2}
+\end{figure}
+
+The second case taken into account is MaxPool Layer and the results are summarized in figure \ref{fig:time-max-3}:
 
 \begin{figure}[H]
 \centering
@@ -1273,16 +1244,21 @@ Moreover, using an higher kernel size seems to favour {\tt Byron} over {\tt Tens
 \end{figure}
 
 This may indicates that the higher the numbers of operations, the higher is the advantage gained with {\tt Byron}.
+In our implementation of Maxpool Layer, during the forward function we store the indexes needed for the backward operation: in this way we lose a bit of time during the forward pass, however the backward become just a single {\tt for loop} on the array of indexes. Most likely, {\tt Tensorflow} opted for a different implementation, given the results.
 
-{\bf POSSIBLE OTHER CASES}
+The third layer taken into consideration is the Pixel Shuffle, in particular I considered a scale factor of 6 with an input tensor of dimension $16 \times 512 \times 512 \times 108$. 
+The singular number of input channels has been chosen to be compatible with the re-scaling performed by the pixel-shuffle operation.
+The {\tt Tensorflow} implementation of Pixel shuffle seems to behave very differently from previous cases: indeed it does not scale at all with the number of threads, and times remain very similar from 1 to 64 parallel sections.
+Again, the single thread performances favour {\tt Tensorflow} over {\tt Byron}: although in the forward function {\tt Byron} speed ups quickly with the higher number of threads.  
+I would like to point out that even if the two operations of forward and backward are very similar, being only re-arrengement of the same number of pixels, the latter seems to be faster in both implementations.
+The other scale factor and input shapes tested does not show any different behaviour from the ones described in this case.
 
-% \begin{figure}
-% \centering
-% \includegraphics[scale=0.3]{×}
-% \caption{}
-% \label{}
-% \end{figure}
-
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{./images/shuffler_timing_6.png}
+\caption{\it Comparisons between times to perform forward (left) and backward (right) for Shuffler Layer in Byron and Tensorflow on a 4D tensor of size $16 \time 512 \times 512 \times 108$ for scale 6}
+\label{fig:time-shuf-6}
+\end{figure}
 
 \chapter{Datasets and Methodology}
 
@@ -1379,7 +1355,7 @@ Those modifications result in less parameters, without affecting the accuracy.
 
 \begin{figure}[H]
  \centering
- \includegraphics[scale=0.9]{./images/edsr_wdsr_structure.png}
+ \includegraphics[scale=0.6]{./images/edsr_wdsr_structure.png}
  \caption{\it comparisons between {\tt EDSR} architecture on the left and {\tt WDSR} architecture on the right}
  \label{fig:edsr-wdsr-structure}
 \end{figure}
@@ -1409,7 +1385,9 @@ In total, {\tt WDSR\_A} is composed by more that 3 millions parameters, still 10
 The lesser amount of weights not only decreases memory usage during both test and training, but also greatly increse computational performance: indeed a single forward of {\tt WDSR} is more than 10 times faster than {\tt EDSR}.
 The training dataset is composed by $96 \times 96$ patches from every images of the training section of the DIV2K dataset. Again, the data are augmented with random horizontal flips and rotations and the optmizer is ADAM \cite{adam} minimizing the L1 loss functions.
 
-\section{Train Dataset : DIV2K}
+\newpage
+
+\section{Train Dataset: DIV2K}
 
 The training set is a general purpose dataset called DIV2K \cite{DIV2K} and it has been employed to train and validate {\tt EDSR} and {\tt WDSR} for the {\it NTIRE} competition ({\it New Trends in Image Restoration and Enhancement}).
 
@@ -1456,10 +1434,9 @@ To test the model on NMR images, we used a series of 5 patients weighted $T_1$ a
  \label{fig:orig_ref}
 \end{figure}
 
-Then, the HR images (which will also be called {\it originals}) have been  downsampled with the bicubic algorithm by two different scale factors, namely 2x and 4x, obtaining two distinct sets of LR images for every subject and for every weight, respectively of sizes $128 \times 128 \times 176$ and $64 \times 64 \times 176$.
-
-After all that, the LR images are convoluted with a gaussian kernel of size 3, stride 1 and standard deviation 1 with the function \texttt{cv2.GaussianBlur} of the library OpenCV. 
-This has been done to better resemble a LR data-acquisition, as if the images were obtained at low resolution directly and not coming from a downsampling.
+The HR images (which will also be called {\it originals}) are convoluted with a gaussian kernel of size 3, stride 1 and standard deviation 1 with the function \texttt{cv2.GaussianBlur} of the library \texttt{OpenCV}. 
+Then, they have been  downsampled with the bicubic algorithm by two different scale factors, namely $\times 2$ and $\times 4$, with the function \texttt{resize}, also available from {\texttt OpenCV}, obtaining two distinct sets of LR images for every subject and for every weight, respectively of sizes $128 \times 128 \times 176$ and $64 \times 64 \times 176$.
+The gaussian blurring has been done to better resemble a LR data-acquisition, as if the images were obtained at low resolution directly and not coming from a downsampling.
 In figure \ref{fig:inp2} is shown an example of the images obtained by this procedure for a downscale factor of 2:
 
 \begin{figure}[H]
@@ -1478,8 +1455,8 @@ In figure \ref{fig:inp4} is shown an example of the images obtained by this proc
  \label{fig:inp4}
 \end{figure}
 
-The LR images are used as input for {\tt EDSR}, {\tt WDSR} and the bicubic algorithm which re-upsample them respectively by factors 2x, 4x and both, trying to recostruct an image as close as possible to the original one.
-As a further analysis, we decided to investigate how different input conditions influence the results for the three methods. 
+The LR images are used as input for {\tt EDSR}, {\tt WDSR} and the bicubic algorithm which re-upsample them respectively by factors $\times 2$, $\times 4$ and both, trying to recostruct an image as close as possible to the original one.
+As a further analysis, I decided to investigate how different input conditions influence the results for the three methods. 
 In particular how an angle of rotation for the LR images can impact the final re-upsample: indeed this changes the orientation of lines, shapes, and textures, which can affect the reconstruction.
 Nonetheless it can give an important insight on the level of invariance of the two models and on the {\it explainability} of the results. 
 
@@ -1494,28 +1471,30 @@ I divided the full angle into 20 sections, separated by a step of $18$°. In fig
 
 The recostruction are compared with the original images using PSNR and SSIM values for every patient, weight, channel, scale factor and angle of rotation. 
 As stated before, the NMR slices are 1-channeled gray-scale image while the SR models work on RGB image: this is solved by adding an artificial depth concatenating the same slice 3 times. 
-The dataset of original HR images is publicly available from \href{http://insight-journal.org/midas/collection/view/190}{MIDAS} \cite{dataset}. 
+The dataset of original HR images is publicly available from \href{http://insight-journal.org/midas/collection/view/190}{NAMIC} \cite{dataset}. 
 
 \chapter{Results}
 
-In the following chapter I'm going to report quantitative and qualitative results for the different analysis carried out during the work.
+In the following chapter I am going to report quantitative and qualitative results for the different analysis carried out during the work.
 I describe the quantitative results obtained by the different methods evaluated by means of PSNR, SSIM score and by a qualitative visual analisys.
 At the end of the chapter I will summarize the results and provides possible continuations for future analysis.  
 
 \section{Upsample Comparisons}
 
-The {\tt EDSR} model is used to upsample the images by a x2 factor so that the single slice is Super Resolved from a $128 \times 128$ to a $256 \times 256$ spatial resolution. 
-The {\tt WDSR} model instead, is used to upsample the images by a x4 factor so that the single slice is Super Resolved from a $64 \times 64$ to a $256 \times 256$ spatial resolution. 
+The {\tt EDSR} model is used to upsample the images by a $\times 2$ factor so that the single slice is super-resolved from a $128 \times 128$ to a $256 \times 256$ spatial resolution. 
+The {\tt WDSR} model instead, is used to upsample the images by a $\times 4$ factor so that the single slice is super-resolved from a $64 \times 64$ to a $256 \times 256$ spatial resolution. 
 
-I decided to separate the analysis for the three output channel of the super-resolution since it can highlight particular behaviours. 
-In figure \ref{fig:edsr-score-slide} are shown the average trends for PSNR and SSIM score for the three channels (Red, Green, Blue lines) and for the bicubic algorithm (Yellow lines). 
-It is clear that there is a difference between the three output for the super resolution: namely there is a vertical shift in the trends passing from Red to Blue and from Blue to Green, the latter being the best performer.
-Moreover, the "best" channel for {\tt EDSR} outperforms consinstently the bicubic algorithm in the most informative section of the subjects.
+I decided to separate the analysis for the three output channels of the super-resolution since it can highlight particular behaviours. 
+Moreover, the two kinds of MRI, T1-weighted and T2-weighted, will also be evaluated separately, because it can give a useful insight on what the models are able to ``see''.  
+In figure \ref{fig:edsr-score-slide-t1} are shown the average trends for PSNR and SSIM score for the three channels (Red, Green, Blue lines) and for the bicubic algorithm (Yellow lines), of cases weighted T1.
+They are averaged for all patients and angle of rotations.
+It is clear that there is a difference between the three outputs for the super resolution: namely there is a vertical shift in the trends passing from Red to Green and from Green to Blue, the latter being the best performer.
+Moreover, the ``best'' channel for {\tt EDSR} outperforms consinstently the bicubic algorithm, and the second best outperforms the bicubic algorithm in the most informative section of the images. 
 
 \begin{figure}[H]
-  \includegraphics[scale=0.37]{./images/edsr_score_slide.png}
-  \caption{\it Average trends of PSNR (left) and SSIM (right) for the three channels (Red, Blue, Green lines) of the Super Resolution EDSR model compared with the bicubic algorithm scores (Yellow) as functions of the slices. The average is performed for every patients and for every rotation. The dotted lines highlights the slices where the bicubic and Super Resolution performances intersect. The bicubic seems to perform better than SR only on the less informative section of the subjects.}
-  \label{fig:edsr-score-slide}
+  \includegraphics[scale=0.37]{./images/EDSR_score_slide_t1_all.png}
+  \caption{\it Average trends of PSNR (left) and SSIM (right) for the three channels (Red, Blue, Green lines) of the Super Resolution EDSR model compared with the bicubic algorithm scores (Yellow) as functions of the slices. The average is performed for every patients and for every rotation,  cosidering only T1 weighted NMR. The dotted lines highlights the slices where the bicubic and super-resolution green channel performances intersect.}
+  \label{fig:edsr-score-slide-t1}
 \end{figure}
 
 In figure \ref{fig:edsr-upscale} is shown an example on the kind of reconstruction the two methods are able to achieve on a significant slice: 
@@ -1523,33 +1502,79 @@ In figure \ref{fig:edsr-upscale} is shown an example on the kind of reconstructi
 \begin{figure}[H]
  \centering
  \includegraphics[scale=0.3]{./images/edsr-comp-images.png}
- \caption{\it (left) original image, (center) reconstruction performed with {\tt EDSR}, (right) reconstruction using the bicubic method. The input in this case is not rotated.}
+ \caption{\it (left) original image, (center) reconstruction performed with {\tt EDSR} blue channel, (right) reconstruction using the bicubic method. The input in this case is not rotated.}
  \label{fig:edsr-upscale}
 \end{figure}
 
-On the other hand, the three outputs of the {\tt WDSR} are more consistents between each others and through the subjects they performs, on average, steadily better than the bicubic algorithm. As shown in figure \ref{fig:wdsr-score-slide}    
+In the {\tt EDSR} reconstruction there seems to be generally less noise, both around edges and more so in the gray area of the brain. 
+\\
+On the other hand, the results for T2-weighted NMRs are a bit different, indeed figure \ref{fig:edsr-score-slide-t2} highlights how the performances of EDSR are relatively worse compared with the previous case.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[scale=0.3]{./images/EDSR_score_slide_t2_all.png}
+ \caption{\it Average trends of PSNR (left) and SSIM (right) for the three channels (Red, Blue, Green lines) of the super-resolution EDSR model compared with the bicubic algorithm scores (Yellow) as functions of the slices. The average is performed for every patients and for every rotation,  considering only T2-weighted NMRs. In this case the bicubic seems to perform better, a part from the central section of the slice.}
+ \label{fig:edsr-score-slide-t2}
+\end{figure}
+
+in figure \ref{fig:edsr-upscale-t2} is shown an example of the kind of reconstruction the methods can achieve on a significant slice:
+
+\begin{figure}[H]
+  \centering 
+  \includegraphics[scale=0.3]{./images/EDSR_comp_images_t2.png}
+  \caption{\it (left) original image, (center) reconstruction performed with {\tt EDSR}, (right) reconstruction using the bicubic method for a T2-weighted image. The input in this case is not rotated.}
+ \label{fig:edsr-upscale-t2}
+\end{figure}
+
+In this particular case, the {\tt EDSR} performed better that the bicubic algorithm, indeed the absolute difference image (in figure \ref{fig:edsr-diff-t2-b}) indicates much less high frequency component and a ``smoother'' visualization. 
+
+For the {\tt WDSR} model, the three outputs are more consistents between each others and through the subjects they performs, on average, steadily better than the bicubic algorithm for T1-weighted NMR, as shown in figure \ref{fig:wdsr-score-slide-t1}:    
 
 \begin{figure}[H]
   \centering
- \includegraphics[scale=0.37]{./images/wdsr_score_slide.png}
-  \caption{\it Average trends of PSNR (left) and SSIM (right) for the three channels (Red, Blue, Green lines) of the Super Resolution WDSR model compared with the bicubic algorithm scores (Yellow) as functions of the slices. The average is performed for every patients and for every rotation.}
- \label{fig:wdsr-score-slide}
+ \includegraphics[scale=0.37]{./images/WDSR_score_slide_t1_all.png}
+  \caption{\it Average trends of PSNR (left) and SSIM (right) for the three channels (Red, Blue, Green lines) of the Super Resolution WDSR model compared with the bicubic algorithm scores (Yellow) as functions of the slices. The average is performed for every patients and for every rotation, for T1-weighted NMRs.}
+ \label{fig:wdsr-score-slide-t1}
 \end{figure}
 
-A recostruction performed starting from a donwscaled input $64 \times 64$ is shown in figure \ref{wdsr-upscale} for the two methods:
+A recostruction performed starting from a donwscaled input $64 \times 64$ is shown in figure \ref{wdsr-upscale} for the two methods on a T1-weighted slice
+\\
+The result is clearly worse than the {\tt EDSR} cases since the $ \times 4$ down-scaling is quite heavy. 
+Indeed, the recostruction shows a lot of artifacts, particularly on the scalp of the subjects and they are more evident for the slices upscaled with the {\tt WDSR}.
+In both cases the upsampling methods introduce a bias on the background of the image which can spoil the quantitative result.
+This effect can be explained if we consider that both models are not trained to upsample this kind of images, so the introduction of artifacts (such as background bias) may be a consequence of them trying to enhance the few signals gathered from the low-resolution inputs.
 
 \begin{figure}[H]
  \centering 
-  \includegraphics[scale=0.3]{images/wdsr-comp-images.png}
-  \caption{\it (left) original image, (center) reconstruction performed with {\tt WDSR}, (right) reconstruction using the bicubic method. The input in this case is not rotated.}
+  \includegraphics[scale=0.3]{./images/wdsr-comp-images.png}
+  \caption{\it (left) original image, (center) reconstruction performed with {\tt WDSR}, (right) reconstruction using the bicubic method for a T1-weighted image. The input in this case is not rotated.}
  \label{wdsr-upscale}
 \end{figure}
 
-The result is clearly worse than the previous case since the x4 down-scaling is quite heavy. Indeed, the recostructions show a lot of artifact, particularly on the scalp of the subjects and more evident for the slice upscaled with the {\tt WDSR}.
-In both cases the upsampling methods introduce a bias on the background of the image which can spoil the quantitative result.
-This effect can be explained if we consider that both models are not trained to upsample this kind of image, so the introduction of artifacts (such as background bias) may be a consequence of them trying to enhance the few signals gathered from the low-resolution input.  
+The results for T2-weighted images do not change if we compare the Bicubic upsample with the {\tt WDSR}, although it is possible to see that the scores are nearer to each others. 
+The graphs are shown in figure \ref{fig:wdsr-score-slide-t2}.
 
-\section{Scores By Angle}
+\begin{figure}[H]
+  \centering
+ \includegraphics[scale=0.37]{./images/WDSR_score_slide_t2_all.png}
+  \caption{\it Average trends of PSNR (left) and SSIM (right) for the three channels (Red, Blue, Green lines) of the Super Resolution WDSR model compared with the bicubic algorithm scores (Yellow) as functions of the slices. The average is performed for every patients and for every rotation, for T2-weighted NMRs.}
+ \label{fig:wdsr-score-slide-t2}
+\end{figure}
+
+A recostruction performed starting from a donwscaled input $64 \times 64$  for a T2-weighted slice is shown in figure \ref{wdsr-upscale-t2} for the two methods:
+
+\begin{figure}[H]
+ \centering 
+  \includegraphics[scale=0.3]{./images/wdsr_comp_images_t2.png}
+  \caption{\it (left) original image, (center) reconstruction performed with {\tt WDSR}, (right) reconstruction using the bicubic method for a T2-weighted image. The input in this case is not rotated.}
+ \label{wdsr-upscale-t2}
+\end{figure}
+
+The {\tt WDSR} seems to obtain a smoother and less noisy than the bicubic up-sampling, both around edges and on 
+Also, for T2-weighted images the number of artifacts in the scalp is reduced from figure \ref{wdsr-upscale}, which shows a T1-weighted reconstruction. 
+Moreover, the background is much more dark than the T1 reconstruction. 
+
+\section{Scores by Angle}
 
 The next analysis focused on how the angle of rotation influences the final results. In figure \ref{fig:edsr-angles} it is possible to see again how the scores greatly varies between SR channels, with the green one beeing the best performer. The average trends (mediated between all patients and slides) exhibit the presence of privileged angles for every method tested.
 
@@ -1577,7 +1602,7 @@ If we take a look at the images upscaled by x2 methods in figure \ref{fig:edsr-a
 \begin{figure}[H]
  \centering
  \includegraphics[scale=0.3]{./images/edsr_angle_18.png}
- \caption{\it comparison between {\tt EDSR} x2 and bicubic, if compared with the images above, the level of recostruction is really similar to slices without rotations in figure \ref{edsr-upscale}}
+ \caption{\it comparison between {\tt EDSR} x2 and bicubic, if compared with the images above, the level of recostruction is really similar to slices without rotations in figure \ref{fig:edsr-upscale}}
  \label{fig:edsr-angle-18}
 \end{figure}
 
@@ -1593,84 +1618,147 @@ On the other hand, the {\tt WDSR} x4 upscaling shows far less artifact on angles
 This can be due to different reasons: firstly, by rotating the images we technically performs an interpolation, particularly for angles differents from multiple of 90°; this can enhance or deteriorate lines and textures of the images and by results, strengthen or weaken the reconstruction of the methods. 
 Secondly, the DIV2K dataset in which the models are trained and tested is intrinsically oriented: this means that if the images are not rotated during training, the models could have learnt a privileged angle of orientation for shapes and texture.
 Interestingly, as stated in \cite{wdsr} for {\tt WDSR} and in \cite{edsr} for {\tt EDSR}, both models should have been trained by augmenting the dataset with randoms flips and rotations of the input images. 
+Another possibility is the convolutional layers, which compose the majority of deep learning models, are not invariant for rotations, but only for transitions, that may introduces variations in the results.
+
+\newpage
 
 \section{Error localization}
 
 The following section will focus on where the error is localized in the images and how it is distributed. 
-For doing that I computed the pixel-wise absolute difference between the original slice and the correspondent super resolved one. As can be seen in figure \ref{fig:abs_diff_x2} the major differences lies in the scalp of the subjects, which tends to be the most uninteresting part.
+For doing that I computed the pixel-wise absolute difference between the original slice and the correspondent super-resolved one. As can be seen in figure \ref{fig:abs_diff_x2} the major differences lie in the scalp of the subjects, which tends to be the most uninteresting part.
 
 \begin{figure}[H]
  \centering
  \includegraphics[scale=0.4]{./images/diff-edsr.png}
- \caption{\it Absolute differences of Super resolved image (left) and bicubic (right). in both cases, the major differences seems to lies in the scalps of the subjecs. Though, it can be seen that the background is not zero, which means it has an impact on the scores.}
+ \caption{\it Absolute differences for {\tt EDSR} reconstruction (left) and bicubic (right), for a T1-weighted image. In both cases, the major differences seems to lies in the scalps of the subjecs. Though, it can be seen that the background is not zero, which means it has an impact on the scores.}
  \label{fig:abs_diff_x2}
 \end{figure}
 
 It is also clear by the differences, that the bias introduced by the two methods influences the results since there is a non-zero background which makes up a large part of the images. Indeed, by looking at the error distribution in figure \ref{fig:histo-edsr}, it appears that the background component is the most relevant part. 
 However, by being prevalent on both methods, it does not influence the relative results.
+The second, and lower, peak of the two distributions represents the {\it brain component} of the images: by looking at them we can see that the distribution relative to the SR model is narrower and slightly shifted towards lower intensities, therefore justifying the better scores achieved by the model.
+Both histograms are mostly composed by values lower than 0: this means that the two models over-estimate most of the pixel values.
 
 \begin{figure}[H]
  \centering
- \includegraphics[scale=.4]{./images/histo-edsr.png}
- \caption{\it Histograms of the distribution of absolute differences for the reconstruction performed by EDSR (Blue) and by the bicubic algorithm (Orange). The histogram has been cut between 0.04 and 0.1 on the y axis to better represent the lower parts.}
+ \includegraphics[scale=.35]{./images/EDSR_diff_histo_t1.png}
+ \caption{\it Histograms of the distribution of differences pixel-by-pixel for the reconstruction performed by EDSR (Blue) and by the bicubic algorithm (Orange), for a T1-weighted NMR. The histogram has been cut between 0.05 and 0.1 on the $y$ axis to better represent the lower parts.}
  \label{fig:histo-edsr}
 \end{figure}
 
-The second peak of the two distributions represents the {\it brain component} of the images: 
-by looking at them we can see that the distribution relative to the SR model is narrower and slightly shifted towards lower intensities, therefore justifying the better scores achieved by the model.
+In the case of a T2-weighted sample, I show in figure \ref{fig:edsr-diff-t2-b} that the behaviour seems to be inversed: indeed this time the high frequency components of the differences are focused on the inner parts of the image and in particular around edges.
 
-% \section{T1 and T2 scores analysis }
+\begin{figure}[H]
+ \centering
+ \includegraphics[scale=0.4]{./images/EDSR_diff_t2.png}
+ \caption{\it Absolute differences of Super resolved image obtained with {\tt EDSR} (left) and bicubic (right) for T2-weighted NMR. This time the major differences seem to be mostly located on the inner parts of the sample, in particular around edges.}
+ \label{fig:edsr-diff-t2-b}
+\end{figure}
+
+Also, the distribution of those differences is more concentrated around the peak of density, which, again, represents the background components, that is not zero. 
+This concentration (and simmetry, in case of the bicubic upsample) is due to fact that there are much less white and gray pixels and a majority of dark-ish ones.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[scale=0.3]{./images/EDSR_diff_histo_t2.png}
+ \caption{\it Histograms of the distribution of differences pixel-by-pixel for a reconstruction performed by EDSR (Blue) and by the bicubic algorithm (Orange), for a T2-weighted NMR. The histogram has been cut between 0.08 and 0.1 on the $y$ axis to better represent the lower parts.}
+ \label{fig;edsr-diff-histo-t2}
+\end{figure}
+
+The same comparisons can be made also for {\tt WDSR} and in general for an up-sampling scale factor of $\times 4$. In figure \ref{fig:wdsr-diff-t1} I show the absolute differences of a T1 sample upscaled from $64 \times 64$ to HR.  
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[scale=0.4]{./images/WDSR_diff_t1.png}
+ \caption{\it Absolute differences of Super resolved images obtained with {\tt WDSR} (left) and bicubic (right) for a T1-weighted NMR. Also in this case the major differences seems to be focused on the scalp of the subjects.}
+ \label{fig:wdsr-diff-t1}
+\end{figure}
+
+First of all, also in this case the major differences are located around the scalp, this visualization also highlights better the artifacts created during the upsampling for both reconstractions.
+Another problem, is the strong background components of the {\tt WDSR}. upsampling, which is much more evident than in the bicubic case. 
+In the histograms in figure \ref{fig:wdsr-diff-histo-t1} is shown the distributions of the differences of the two reconstructions:
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[scale=0.3]{./images/WDSR_diff_histo_t1.png}
+ \caption{\it Histograms of the distribution of differences pixel-by-pixel for a reconstruction performed by EDSR (Blue) and by the bicubic algorithm (Orange), for a T2-weighted NMR. The histogram has been cut between 0.08 and 0.1 on the $y$ axis to better represent the lower parts.}
+ \label{fig:wdsr-diff-histo-t1}
+\end{figure}
+
+The same considerations that have been expressed for the previous cases, can be made also in this one: by looking at the distributions, both models over-estimate the majority of pixels in the images. 
+
+In figure \ref{fig:wdsr-diff-t2} is shown the absolute difference between the original images and the two $\times 4$ reconstructions performed respectively by {\tt WDSR} and the bicubic.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[scale=0.4]{./images/WDSR_diff_t2.png}
+ \caption{\it Absolute differences of Super resolved images obtained with {\tt WDSR} (left) and bicubic (right) for a T2-weighted NMR.}
+ \label{fig:wdsr-diff-t2}
+\end{figure}
+
+In figure \ref{fig:wdsr-diff-histo-t2} is shown the relative histograms of distributions of differences for the slice shown above.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[scale=0.3]{./images/WDSR_diff_histo_t2.png}
+ \caption{\it Histograms of the distribution of differences pixel-by-pixel for a reconstruction performed by EDSR (Blue) and by the bicubic algorithm (Orange), for a T2-weighted NMR. The histogram has been cut between 0.08 and 0.1 on the $y$ axis to better represent the lower parts.}
+ \label{fig:wdsr-diff-histo-t2}
+\end{figure}
+
+In this case the distribution seems to be more spreaded and almost symmetric around the peak, again sligtly shifted towards negatives values, which indicates an over-estimation of pixel gray scale values for the two reconstructions. 
+
+The next analysis will focus on the study of how reconstructions performs with a standard post-processing tool for NMR and on the analysis of the same data by removing the background. 
 
 \section{Brain Extraction}
 
 To avoid background related problems, I extended the analysis to images where the background and the scalp were removed with FSL BET (Brain Extraction Tool)\cite{fsl}.
 FSL is a standard post-processing tool for NMR, it works by creating a binary mask for every slice and then applies it to the images: in this way is possible to extract only the relevant information from data. 
-A binary mask is a tensor of zeros and ones with the same dimension as the original NMR, the "ones" correspond to the pixel we want to preserve. 
+A binary mask is a tensor of zeros and ones with the same dimension as the original NMR, the ``ones'' correspond with the pixel we want to preserve. 
 An example is shown in figure \ref{fig:mask-ex}:
 
 \begin{figure}[H]
   \centering
-  \includegraphics[scale=0.31]{./images/mask_example.png}
+  \includegraphics[scale=0.28]{./images/mask_example.png}
   \caption{\it Example of application of a mask on one of the slices of the original 3D map. (left) Original image, (center) Mask obtained from FSL BET and (right) Mask applyed to the original image. }
   \label{fig:mask-ex}
 \end{figure}
 
-I reported two different approach for a single patient and a single angle of rotation: firstly, three different binary masks for original images, Super Resolved reconstructions and bicubic ones were extracted. In this way it's possible to quantify how well a standard post processing tool like BET performs on images obtained by upsampling. 
-Secondly, I masked all three reconstruction with the same binary maps, obtained from the original high resolution NMR, in this way it's possible to compare directly the reconstruction capabilities of the methods, without including uninteresting data.
-The first analysis how well BET works on the reconstructed images, therefore I'll consider distinct masks applied separately to the results.
+I reported two different approaches for a single patient: firstly, three different binary masks for original images, Super Resolved reconstructions and bicubic ones were extracted. In this way it is possible to quantify how well a standard post processing tool like BET performs on images obtained by upsampling. 
+Secondly, I masked all three reconstruction with the same binary mask, obtained from the original high resolution NMR, in this way it is possible to compare directly the reconstruction capabilities of the methods, without including uninteresting data.
+The first analysis how well BET works on the reconstructed images, therefore I will consider distinct masks applied separately to the results.
 As shown in figure \ref{fig:bet-example}, Brain Extraction Tool not only removes the background, but also the entire scalp, which was shown to contains the main differences from the original image.
 
 \begin{figure}[H]
   \centering
-  \includegraphics[scale=0.31]{./images/bet_example.png}
+  \includegraphics[scale=0.28]{./images/bet_example.png}
  \caption{\it Examples of Brain Extraction for original image (left), EDSR image (center) and Bicubic results (right). The binary masks are different for the three images.}
  \label{fig:bet-example}
 \end{figure}
 
-Indeed, by comparing the scores on every slice pre and post BET, the performance improvement is clear. 
-For {\tt EDSR} the results are reported in figure \ref{fig:pre-post-bet}: in the upper graphs are shown the trends for PSNR and SSIM of 1 patient weighted $T_1$ for no rotation while on the graphs below the trends for the same NMR after the BET. 
-It is possible to see how the scores greatly improve in the second case, showing that the background/scalp removal has a significant impact on performances and at the same time, the Super Resolution's scores are still better than the bicubic's.
-As a side note, the initial and final slices are cut from the analysis of PSNR since they are completely black pictures and the scores diverge, while the SSIM reaches one.
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[scale=0.27]{./images/pre_bet_edsr.png}
-  \includegraphics[scale=0.27]{./images/betted_x2_slide.png}
- \caption{\it comparisons between trends for one patients of PSNR (left) and SSIM (right) of results obtained from {\tt EDSR} and bicubic algorithm. The upper graphs refers to images pre Brain Extraction while the lower ones post Brain Extraction. After the removal of background and scalp, the scores improve for both methods, while still showing better performances for Super Resolution}
- \label{fig:pre-post-bet}
-\end{figure}
-
-For the {\tt WDSR} model the results after the brain extraction are really close to the ones shown for the {\tt EDSR} and are reported with same structure in figure \ref{fig:pre-post-bet-2}:
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[scale=0.3]{./images/pre_bet_wdsr.png}
-  \includegraphics[scale=0.3]{./images/betted_x4_slide.png}
- \caption{\it Comparisons between trends for one patients of PSNR (left) and SSIM (right) of results obtained from {\tt WDSR} and bicubic algorithm. The upper graphs refers to images pre Brain Extraction while the lower ones post Brain Extraction. After the removal of background and scalp, the scores improve for both methods, while showing better performances for Super Resolution.}
- \label{fig:pre-post-bet-2}
-\end{figure}
-
-Again, both methods shows a huge score improvement with the {\tt WDSR} being the best performer overall.
+% Indeed, by comparing the scores on every slice pre and post BET, the performance improvement is clear. 
+% For {\tt EDSR} the results are reported in figure \ref{fig:pre-post-bet}: in the upper graphs are shown the trends for PSNR and SSIM of 1 patient weighted $T_1$ for no rotation while on the graphs below the trends for the same NMR after the BET. 
+% It is possible to see how the scores greatly improve in the second case, showing that the background/scalp removal has a significant impact on performances and at the same time, the Super Resolution's scores are still better than the bicubic's.
+% As a side note, the initial and final slices are cut from the analysis of PSNR since they are completely black pictures and the scores diverge, while the SSIM reaches one.
+% 
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[scale=0.27]{./images/pre_bet_edsr.png}
+%   \includegraphics[scale=0.27]{./images/betted_x2_slide.png}
+%  \caption{\it comparisons between trends for one patients of PSNR (left) and SSIM (right) of results obtained from {\tt EDSR} and bicubic algorithm. The upper graphs refers to images pre Brain Extraction while the lower ones post Brain Extraction. After the removal of background and scalp, the scores improve for both methods, while still showing better performances for Super Resolution}
+%  \label{fig:pre-post-bet}
+% \end{figure}
+% 
+% For the {\tt WDSR} model the results after the brain extraction are really close to the ones shown for the {\tt EDSR} and are reported with same structure in figure \ref{fig:pre-post-bet-2}:
+% 
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[scale=0.3]{./images/pre_bet_wdsr.png}
+%   \includegraphics[scale=0.3]{./images/betted_x4_slide.png}
+%  \caption{\it Comparisons between trends for one patients of PSNR (left) and SSIM (right) of results obtained from {\tt WDSR} and bicubic algorithm. The upper graphs refers to images pre Brain Extraction while the lower ones post Brain Extraction. After the removal of background and scalp, the scores improve for both methods, while showing better performances for Super Resolution.}
+%  \label{fig:pre-post-bet-2}
+% \end{figure}
+% 
+% Again, both methods shows a huge score improvement with the {\tt WDSR} being the best performer overall.
 
 In figures \ref{fig:edsr-bet-diff} and \ref{fig:wdsr-bet-diff} the differences pixel by pixel between super resolution's results and the original image are reported side-by-side with the corresponding Bicubic results.
 
@@ -1684,12 +1772,18 @@ In figures \ref{fig:edsr-bet-diff} and \ref{fig:wdsr-bet-diff} the differences p
 \begin{figure}[H]
 \centering
  \includegraphics[scale=0.4]{./images/wdsr_diff_betted}
- \caption{\it Absolute differences for Super Resolution (WDSR, left) and bicubic (right). In this case, the principal dissimilarities are not focused only on the outer parts of the brain and that is understandable, given the high level of downsampling.}
+ \caption{\it Absolute differences for Super Resolution {\tt WDSR}, left) and bicubic (right). In this case, the principal dissimilarities are not focused only on the outer parts of the brain and that is understandable, given the high level of downsampling.}
  \label{fig:wdsr-bet-diff}
 \end{figure}
 
+In the first case (figure \ref{fig:edsr-bet-diff}) we can see the main dissimilarities are on the border of the two brains, meaning that BET did not catch all the relevant informations on the reconstructed sample or, otherwise, the up-sampling highlighted . 
+In any case, there some differences between masks, which can be quantified with an {\it Intersection over Union} (IoU), as described below.  
+
+In the second case (figure \ref{fig:wdsr-bet-diff}), the principal dissimilarities are not focused only on the outer parts of the brain, accordingly to what have been shown before, and that is understandable, given the high level of downsampling. 
+Again there some discrepancies between images aroun the border, meaning that during re-upsample some of the informations are lost or over-amplified with respect to the original image.  
+
 The histogram of the distribution of differences in figure \ref{fig:histo-bet-edsr} shows how the background component is now shifted towards 0, implying that is not considered in the score computations. 
-The distributions also shows a spread and a shift towards higher differences of the brain component: this is probably due to the higher contrast in the images obtained by Brain Extraction.
+The distributions also shows a spread and a shift towards higher differences of the brain component: this is probably due to the higher contrast in the images obtained by brain extraction.
 
 \begin{figure}[H]
  \centering
@@ -1699,7 +1793,7 @@ The distributions also shows a spread and a shift towards higher differences of 
 \end{figure}
 
 As a last evaluation I considered the Intersection over Union (IoU) score, which quantifies the overlap between different masks. 
-The IoU is defined as : 
+The IoU is defined as: 
 
 \begin{equation}
  IoU = \frac{A \cap B}{A \cup B}
@@ -1717,48 +1811,47 @@ The trends of IoU for the two models compared with the bicubic algorithm can be 
 \end{figure}
 
 The comparisons between IoU in the {\tt EDSR} do not shows much of a difference with the bicubic algorithm. On the other hand, {\tt WDSR} seems to be slightly penalized: that is most likely due to the artifacts present in the scalp of the subjects shown
-in figure \ref{wdsr-upscale} interfering with the brain extraction.
+in figure \ref{wdsr-upscale} interfering with the brain extraction, which may makes the super-resolution model with this level of down-sampling less adapt to work with BET-like softwares
 \\
-The second analysis proposed in this section regards how the upsampling methods performs considering the same mask for all the reconstruction. 
-Since the original High Resolution NMR is supposed to represents an objective "truth" for our study, the best available mask is of course the one acquired from its brain extraction.
-For {\tt EDSR}, the results in figure \ref{fig:edsr-bet-same-mask} seems to display comparable scores in terms of PSNR and slightly better results for SR in terms of SSIM. 
+The second analysis proposed in this section regards how the upsampling methods performs considering the same mask applied for all the reconstruction: so that I can compute the scores considering only the same portion of the images, without worriying about background effects. 
+Since the original High Resolution NMR is supposed to represents an objective ``truth'' for our study, the best available mask is of course the one acquired from its brain extraction.
+For {\tt EDSR}, the results in figure \ref{fig:edsr-bet-same-mask} shows the average trends of PSNR and SSIM pre and post brain extraction for the selected patient, mediated over the rotations angle.
 
 \begin{figure}[H]
  \centering
- \includegraphics[scale=0.35]{./images/betted_x2_slide_same_mask.png}
- \caption{\it Comparisons between PSNR score and SSIM score as functions of the slice for {\tt EDSR} and Bicubic upsampling in case the same mask is applied on both reconstrutions.}
+ \includegraphics[scale=0.35]{./images/EDSR_score_t1_prebet.png} 
+ \includegraphics[scale=0.35]{./images/EDSR_score_slide_t1_betted.png}
+ \caption{\it Average trends of PSNR (left) and SSIM (right) for the three channels (Red, Blue, Green lines) of the Super Resolution {\tt EDSR} model compared with the bicubic algorithm scores (Yellow) as functions of the slices. Above are the results pre brain extraction while below the ones post brain extraction. The average is performed for one patient and for every rotation, for T1-weighted NMRs.}
  \label{fig:edsr-bet-same-mask}
 \end{figure}
 
-The same comparisons for {\tt WDSR} in figure \ref{fig:wdsr-bet-same-mask} instead seems to displays the opposite behaviour, with the bicubic outperforming the SR:
+By comparing the pre and post BET performances, it is clear that the differences between channels become much lower, which may means that the discrepancies measured in the pre BET trends comes from artifacts and backgrounds related to ``false-features'' extrapolation which are different between channels and mitigated (or entirely removed) when masking the slices.
+However, at same time, the score discrepancies between bicubic and SR also become much lower than pre-BET, meaning that, on average, the background components does favour the Super-Resolution, but still {\tt EDSR} beats the upsampling of the bicubic by a fair amount after brain extraction.
+\\
+The same comparisons for {\tt WDSR} in figure \ref{fig:wdsr-bet-same-mask} shows very similar results:
 
 \begin{figure}[H]
  \centering
- \includegraphics[scale=0.35]{./images/betted_x4_slide_same_mask.png}
- \caption{\it Comparisons between PSNR score and SSIM score as functions of the slice for {\tt WDSR} and Bicubic upsampling in case the same mask is applied on both reconstrutions.}
+ \includegraphics[scale=0.32]{./images/WDSR_score_t1_prebet.png}
+ \includegraphics[scale=0.32]{./images/WDSR_score_slide_t1_betted.png}
+ \caption{\it  Average trends of PSNR (left) and SSIM (right) for the three channels (Red, Blue, Green lines) of the Super Resolution {\tt WDSR} model compared with the bicubic algorithm scores (Yellow) as functions of the slices. Above are the results pre brain extraction while below the ones post brain extraction. The average is performed for one patient and for every rotation, for T1-weighted NMRs.}
  \label{fig:wdsr-bet-same-mask}
 \end{figure}
 
-However, as reported in previous sections, the {\tt WDSR} scores vary for small angle of rotation: indeed by considering an angle of 18°, the two trends get closer as shown in figure \ref{fig:wdsr-betted-angle-18}
-
-\begin{figure}[H]
- \includegraphics[scale=0.35]{./images/betted_x4_slide_same_mask_angle.png}
- \caption{\it Comparisons between PSNR score and SSIM score as functions of the slice for {\tt WDSR} and Bicubic upsampling in case the same mask is applied on both reconstrutions with an angle of rotation of 18°.}
- \label{fig:wdsr-betted-angle-18}
-\end{figure}
-
-\newpage
+Indeed, even in this case, the SR performs better than the bicubic algorithm for all three channels, which are very consistent with each others. This may indicates that the differences between channels derived by what each of them extrapolate from the background, in terms of bias and artifacts.
 
 \chapter{Conclusions}
 In this work I developed two novel frameworks for Deep Learning called {\tt Byron} in C++ and {\tt NumPyNet} in Python, the former focused on CPU optimizatioon while the latter focused on readability.
-I tested the computational performances of {\tt Byron} for the most important layers against the python library {\tt Tensorflow} {\bf FINISH}
+I tested the computational performances of {\tt Byron} for the most important layers in image analysis against the python library {\tt Tensorflow}.   
 \\
-Moreover, the work extended to implementing and testing two models for super-resolution, {\tt EDSR} and {\tt WDSR}, on NMR images, which represents a new benchmark for those deep networks, originally trained and tested only on {\tt DIV2K}.
-On average, the models show better reconstruction capabilities on the most interesting parts of the brain compared with the bicubic algorithm, although they introduce artifacts and biases: this may be a consequence of them trying to enhance the few signals gathered from low-resolution input. 
+Moreover, the work extended to implementing and testing two models for super-resolution, {\tt EDSR} and {\tt WDSR}, on NMR images, which represent a new benchmark for those deep networks, originally trained and tested only on {\tt DIV2K}.
+On average, the models show better reconstruction capabilities on the most interesting parts of the brain compared with the bicubic algorithm, although they introduce artifacts and biases: this may be a consequence of them trying to enhance the few signals gathered from low-resolution input and ``seeing'' false-features inside the background of the slices.
 Testing {\tt EDSR}, an RGB model, on a gray-scale dataset also highlighted great variability between the three output channels, while {\tt WDSR} seems to be more stable in this respect.
-On the other hand though, while {\tt EDSR} results do not exhibit visible differences across angle of rotations, {\tt WDSR}'s ones has been shown to improve noticeably for rotations different from multiples of 90°, possibly showing that its action is not invariant with rotations.
-The localization of errors through a pixel-wise absolute difference between reconstructions and high-resolution NMRs indicates that for both algorithms the major discrepancies are localized around the scalps of the subjects, which tends to be the most uninteresting section of the brains.
+On the other hand though, while {\tt EDSR} results do not exhibit visible differences across angle of rotations, {\tt WDSR}'s ones has been shown to improve for rotations different from multiples of 90°, possibly showing that its action is not invariant with rotations.
+The localization of errors through a pixel-wise absolute difference between reconstructions and high-resolution NMRs indicates that for both algorithms the major discrepancies are localized around the scalps of the subjects, which tends to be the most uninteresting section of the brains. 
+Although, they also highlight that the background components of the images are 
 Thus, the brain extraction has been helpful in removing both background effects and the high level of discrepancy in the scalp. 
+This, in turn, lowered the differencies of performances between super-resolution RGB channels and bicubic algorithm for both models {\tt EDSR} and {\tt WDSR}, while also showing that the SR still shows promising results in terms of reconstruction  of biomedical iamge, which is an indication of how well this models can generalize the ``knowledge'' acquired during training on a completely different dataset such as DIV2K, which does not contain any data about NMRs or other kind of biomedical image.
 \\
 Some future developments for the work may include:
 
